@@ -1,0 +1,371 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Eyes 导盲模式</title>
+    <link rel="stylesheet" href="/static/duplex/duplex-shared.css">
+    <link rel="stylesheet" href="/static/omni/omni.css">
+    <link rel="stylesheet" href="/static/cyber-eyes/cyber-eyes.css">
+</head>
+<body class="cyber-eyes-app">
+    <div class="ce-sr-only" id="ceLivePolite" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="ce-sr-only" id="ceLiveAlert" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+    <header class="ce-header">
+        <div>
+            <p class="ce-kicker">Cyber Eyes</p>
+            <h1>危险优先的实时导盲</h1>
+            <p class="ce-subtitle">默认短句播报，允许随时打断。盲人用户主要依赖语音和固定指令区；画面、日志和高级设置主要给陪同者或部署者核对。</p>
+        </div>
+        <div class="ce-header-actions">
+            <span class="ce-pill ce-pill-static">HTTPS 已启用</span>
+            <span class="status-badge" id="serviceStatus">连接中...</span>
+            <button class="header-reset-btn" id="btnResetSettings" type="button">重置本地设置</button>
+        </div>
+    </header>
+
+    <main class="ce-shell">
+        <section class="ce-stage-card" id="ceStageCard">
+            <div class="ce-card-head">
+                <div>
+                    <p class="ce-label">导盲主视图</p>
+                    <h2>固定指令与取景核对</h2>
+                </div>
+                <div class="ce-stage-meta">
+                    <span class="ce-mini-status" id="ceSessionState">待机</span>
+                    <span class="ce-mini-status" id="ceAssistProfile">安全通行</span>
+                </div>
+            </div>
+
+            <section class="ce-alert-strip is-idle" id="ceAlertStrip" role="status" aria-live="polite" aria-atomic="true">
+                <div class="ce-alert-prefix" id="ceAlertLevel">当前状态</div>
+                <div class="ce-alert-copy">
+                    <strong id="ceAlertTitle">等待启动</strong>
+                    <p id="ceAlertBody">开始后，这里会固定显示最近一条危险或动作指令，方便用户和陪同者快速确认。</p>
+                </div>
+            </section>
+
+            <section class="ce-guidance-card" aria-labelledby="ceGuidanceHeading">
+                <p class="ce-label" id="ceGuidanceHeading">当前一句话</p>
+                <div class="ce-guidance-quote" id="ceLatestGuidance">前方安全时，助手会保持安静；有危险时会先说“停一下”。</div>
+                <p class="ce-guidance-meta" id="ceGuidanceMeta">默认顺序：危险或目标 -> 方向距离 -> 下一步动作。</p>
+            </section>
+
+            <p class="ce-support-copy">摄像头画面主要供陪同者确认取景和设备状态。盲人用户的主交互入口是语音、下方大按钮和实时播报。</p>
+
+            <div class="panel-media ce-panel-media">
+                <div class="video-container" id="videoContainer" aria-label="环境摄像头预览，供陪同者确认取景">
+                    <video id="videoEl" autoplay muted playsinline></video>
+                    <canvas id="frameCanvas" style="display:none;"></canvas>
+                    <div class="video-placeholder" id="videoPlaceholder">
+                        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m22 8-6 4 6 4V8Z"></path>
+                            <rect width="14" height="12" x="2" y="6" rx="2" ry="2"></rect>
+                        </svg>
+                        <span>正在等待摄像头权限...</span>
+                    </div>
+                    <div class="video-overlay" id="videoOverlay" style="display:none;">
+                        <span class="video-badge" id="modeBadge">Cyber Eyes Live</span>
+                    </div>
+                    <button class="cam-flip-btn" id="camFlipBtn" title="切换前后摄像头" type="button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"></path>
+                            <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="m18 22-3-3 3-3"></path>
+                            <path d="m6 2 3 3-3 3"></path>
+                        </svg>
+                    </button>
+                    <button class="mirror-btn" id="mirrorBtn" title="镜像预览" type="button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="3" x2="12" y2="21" stroke-dasharray="2 2"></line>
+                            <polygon points="5,6 5,18 1,12" fill="currentColor" stroke="none"></polygon>
+                            <polygon points="19,6 19,18 23,12" fill="currentColor" stroke="none"></polygon>
+                            <path d="M8 6h-1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1"></path>
+                            <path d="M16 6h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-1"></path>
+                        </svg>
+                    </button>
+                    <div class="status-lamp" id="statusLamp">
+                        <span class="dot"></span>
+                        <span class="label">LIVE</span>
+                        <span class="timer" id="lampTimer"></span>
+                    </div>
+                    <button class="fullscreen-btn" id="fullscreenBtn" title="全屏" type="button">
+                        <svg id="fullscreenIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+                            <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+                            <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+                            <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+                        </svg>
+                    </button>
+                    <div class="video-border-overlay" id="videoBorderOverlay"></div>
+                    <button class="subtitle-toggle-btn" id="subtitleToggleBtn" title="字幕显示开关" type="button">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 6h16"></path>
+                            <path d="M12 6v14"></path>
+                        </svg>
+                    </button>
+                    <div class="fs-chat-overlay subtitle-on" id="fsChatOverlay">
+                        <div class="fs-chat-inner" id="fsChatInner"></div>
+                    </div>
+                    <div class="fullscreen-controls" id="fullscreenControls">
+                        <button class="fs-ctrl-btn" id="fsBtnForceListen" disabled type="button">我在说话</button>
+                        <button class="fs-ctrl-btn" id="fsBtnHD" disabled type="button">细节增强</button>
+                        <button class="fs-ctrl-btn fs-start" id="fsBtnStart" type="button">开始导盲</button>
+                        <button class="fs-ctrl-btn" id="fsBtnPause" disabled type="button">暂停</button>
+                        <button class="fs-ctrl-btn fs-stop" id="fsBtnStop" disabled type="button">结束</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ce-wave-card">
+                <div>
+                    <p class="ce-label">拾音监控</p>
+                    <strong>麦克风波形</strong>
+                </div>
+                <div class="omni-waveform-bar ce-waveform" id="omniWaveformBar">
+                    <canvas id="omniWaveformCanvas"></canvas>
+                    <div class="omni-waveform-placeholder" id="omniWaveformPlaceholder">
+                        <span>麦克风待机中</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <aside class="ce-side">
+            <section class="ce-card ce-mission-card">
+                <div class="ce-card-head">
+                    <div>
+                        <p class="ce-label">导盲模式</p>
+                        <h2>任务与行走画像</h2>
+                    </div>
+                    <div class="ce-mini-status" id="cePromptMode">平衡播报</div>
+                </div>
+
+                <div class="ce-contract" id="ceGuidanceContract" aria-label="当前导盲契约">
+                    <div class="ce-contract-line" id="ceContractLine1">优先保命，不做长篇解说。</div>
+                    <div class="ce-contract-line" id="ceContractLine2">优先说明哪里危险、哪里可走。</div>
+                    <div class="ce-contract-line" id="ceContractLine3">用户一开口就让话。</div>
+                </div>
+
+                <div class="ce-field">
+                    <label>场景任务</label>
+                    <div class="ce-chip-grid" data-group="mission">
+                        <button class="ce-chip is-active" type="button" data-mission="safe_walk" aria-pressed="true">安全通行</button>
+                        <button class="ce-chip" type="button" data-mission="find_target" aria-pressed="false">找门/电梯</button>
+                        <button class="ce-chip" type="button" data-mission="read_text" aria-pressed="false">读字识别</button>
+                        <button class="ce-chip" type="button" data-mission="queue_support" aria-pressed="false">排队陪伴</button>
+                    </div>
+                </div>
+
+                <div class="ce-field">
+                    <label>用户移动方式</label>
+                    <div class="ce-chip-grid" data-group="mobility">
+                        <button class="ce-chip is-active" type="button" data-mobility="white_cane" aria-pressed="true">白手杖</button>
+                        <button class="ce-chip" type="button" data-mobility="guide_dog" aria-pressed="false">导盲犬</button>
+                        <button class="ce-chip" type="button" data-mobility="wheelchair" aria-pressed="false">轮椅</button>
+                        <button class="ce-chip" type="button" data-mobility="companion" aria-pressed="false">有陪同者</button>
+                    </div>
+                </div>
+
+                <div class="ce-field">
+                    <label>当前步速</label>
+                    <div class="ce-chip-grid" data-group="pace">
+                        <button class="ce-chip" type="button" data-pace="slow_scan" aria-pressed="false">慢速探索</button>
+                        <button class="ce-chip is-active" type="button" data-pace="normal_walk" aria-pressed="true">正常行走</button>
+                        <button class="ce-chip" type="button" data-pace="quick_crossing" aria-pressed="false">快速过街</button>
+                        <button class="ce-chip" type="button" data-pace="stationary" aria-pressed="false">原地观察</button>
+                    </div>
+                </div>
+
+                <div class="ce-field">
+                    <label>播报风格</label>
+                    <div class="ce-chip-grid" data-group="style">
+                        <button class="ce-chip is-active" type="button" data-style="balanced" aria-pressed="true">平衡</button>
+                        <button class="ce-chip" type="button" data-style="brief" aria-pressed="false">极简</button>
+                        <button class="ce-chip" type="button" data-style="detailed" aria-pressed="false">详细</button>
+                    </div>
+                </div>
+
+                <div class="ce-field">
+                    <label>主动程度</label>
+                    <div class="ce-chip-grid" data-group="initiative">
+                        <button class="ce-chip is-active" type="button" data-initiative="balanced" aria-pressed="true">危险 + 关键变化</button>
+                        <button class="ce-chip" type="button" data-initiative="quiet" aria-pressed="false">仅危险提醒</button>
+                        <button class="ce-chip" type="button" data-initiative="proactive" aria-pressed="false">持续陪伴</button>
+                    </div>
+                </div>
+
+                <div class="ce-field">
+                    <label for="ceGoal">当前目标</label>
+                    <textarea id="ceGoal" class="ce-goal-input" rows="3" placeholder="例如：带我找到电梯入口，只提醒危险和关键路标。"></textarea>
+                </div>
+
+                <div class="ce-summary" id="cePromptSummary"></div>
+            </section>
+
+            <section class="ce-card ce-control-card">
+                <div class="ce-card-head">
+                    <div>
+                        <p class="ce-label">语音控制</p>
+                        <h2>少按钮，能打断</h2>
+                    </div>
+                    <div class="ce-mini-status" id="ceAudioState">可被打断</div>
+                </div>
+
+                <p class="ce-control-hint" id="ceControlHint">先点“开始导盲”，需要补充一句需求时按住“按住说话”。</p>
+
+                <div class="ce-control-grid">
+                    <button class="ctrl-btn primary ce-main-btn" id="btnStart" type="button">开始导盲</button>
+                    <button class="ctrl-btn ce-main-btn ce-hold-btn ce-wide-btn" id="btnHoldToTalk" disabled type="button" aria-describedby="ceHoldHelp" aria-pressed="false">按住说话</button>
+                    <button class="ctrl-btn ce-main-btn" id="btnPause" disabled type="button">暂停</button>
+                    <button class="ctrl-btn ce-main-btn" id="btnHD" disabled type="button">细节增强</button>
+                    <button class="ctrl-btn danger ce-main-btn ce-stop-btn" id="btnStop" disabled type="button">结束</button>
+                    <button class="ctrl-btn ce-main-btn ce-hidden-control" id="btnForceListen" disabled type="button" tabindex="-1" aria-hidden="true">我在说话</button>
+                    <button class="ctrl-btn ce-main-btn ce-hidden-control ce-download-btn" id="btnDownloadRec" style="display:none;" disabled type="button">下载录制</button>
+                </div>
+
+                <p class="ce-hold-help" id="ceHoldHelp">按住期间，系统优先听你说；松开后恢复导盲。</p>
+
+                <div class="ce-inline-toggles">
+                    <label class="ce-check"><input type="checkbox" id="recCheckbox"> 录制会话（陪同者）</label>
+                    <label class="ce-check"><input type="checkbox" id="visionHD"> 细节识别增强</label>
+                    <span class="ce-vision-hint" id="visionHint">64 tok</span>
+                </div>
+            </section>
+
+            <section class="ce-card ce-log-card">
+                <div class="ce-card-head">
+                    <div>
+                        <p class="ce-label">陪同者查看</p>
+                        <h2>文字回显</h2>
+                    </div>
+                    <div class="ce-mini-status" id="ceLastSignal">等待启动</div>
+                </div>
+                <p class="ce-log-note">这里只用于辅助核对，不是盲人用户的主要交互入口。</p>
+                <div class="panel-dialog ce-dialog-panel">
+                    <div class="conv-log" id="conversationLog" role="log" aria-live="off">
+                        <div class="conv-empty" id="convEmpty">点击“开始导盲”后，这里会显示系统、用户和模型的文字轨迹。</div>
+                    </div>
+                </div>
+            </section>
+        </aside>
+    </main>
+
+    <section class="ce-card ce-advanced-card">
+        <div class="ce-card-head">
+            <div>
+                <p class="ce-label">陪同者 / 部署者</p>
+                <h2>设备与调试参数</h2>
+            </div>
+            <button class="ctrl-btn" id="btnRecSettings" type="button">录制设置</button>
+        </div>
+
+        <div class="ce-advanced-grid">
+            <details class="config-group">
+                <summary>音频与设备</summary>
+                <div class="cg-body">
+                    <div class="cg-row">
+                        <span class="cg-label">麦克风</span>
+                        <select class="cg-select" id="omniMicDevice"></select>
+                    </div>
+                    <div class="cg-row">
+                        <span class="cg-label">扬声器</span>
+                        <select class="cg-select" id="omniSpeakerDevice"></select>
+                    </div>
+                    <div class="cg-row inline">
+                        <span class="cg-label" style="flex:none;">播放延迟</span>
+                        <input type="number" class="cg-input-sm" id="playbackDelay" value="200" min="0" max="2000" step="50">
+                        <span class="ce-small-unit">ms</span>
+                    </div>
+                    <div class="cg-row inline">
+                        <span class="cg-label" style="flex:none;">MaxKV</span>
+                        <input type="number" class="cg-input-sm" id="maxKvTokens" value="8192" min="512" max="8192" step="512">
+                        <span class="ce-small-unit">tok</span>
+                    </div>
+                    <div class="cg-row inline">
+                        <span class="cg-label" style="flex:none;">Length Penalty</span>
+                        <input type="number" class="cg-input-sm" id="omniLengthPenalty" value="1.1" min="0.1" max="5.0" step="0.05">
+                    </div>
+                    <button class="device-refresh-btn" id="omniBtnRefreshDevices" type="button">刷新设备列表</button>
+                </div>
+            </details>
+
+            <details class="config-group" id="omniSysPromptDetails">
+                <summary>系统提示词与音色</summary>
+                <div class="cg-body">
+                    <div id="presetSelectorOmni" data-disabled="true" style="display:none;"></div>
+                    <div class="cg-row">
+                        <textarea class="cg-input" id="systemPrompt" rows="14" placeholder="系统提示词"></textarea>
+                    </div>
+                    <div class="cg-row">
+                        <span class="cg-label">LLM 参考音频</span>
+                        <div id="omniRefAudioPlayer"></div>
+                    </div>
+                    <div class="cg-row ce-tts-row">
+                        <span class="cg-label">TTS 参考音频</span>
+                        <div class="ce-tts-box">
+                            <div class="ce-tts-modes">
+                                <label><input type="radio" name="omniTtsRefMode" value="extract" checked> 与 LLM 一致</label>
+                                <label><input type="radio" name="omniTtsRefMode" value="independent"> 独立上传</label>
+                            </div>
+                            <div id="omniTtsRefHint"></div>
+                            <div id="omniTtsRefUpload" style="display:none;margin-top:6px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <details class="config-group">
+                <summary>运行指标</summary>
+                <div class="cg-body" id="panelStatus"></div>
+            </details>
+        </div>
+    </section>
+
+    <div class="ce-compat" aria-hidden="true">
+        <div class="mode-selector ce-hidden-tools">
+            <button class="mode-btn active" data-mode="live" type="button">Live</button>
+            <button class="mode-btn" data-mode="file" type="button">File</button>
+        </div>
+        <div class="file-chooser ce-hidden-tools" id="fileChooser">
+            <label for="videoFileInput">Choose video</label>
+            <input type="file" id="videoFileInput" accept="video/*">
+            <span id="fileName">No file</span>
+            <span id="fileDuration"></span>
+        </div>
+        <div class="file-options ce-hidden-tools" id="fileOptions">
+            <label><input type="radio" name="fileAudioMode" value="video" checked> Video-only</label>
+            <label><input type="radio" name="fileAudioMode" value="mic"> Mic-only</label>
+            <label><input type="radio" name="fileAudioMode" value="mixed"> Video+Mic</label>
+            <input type="range" id="filePlaybackVol" min="0" max="100" value="30" step="5">
+            <span id="filePlaybackVolVal">30%</span>
+            <input type="range" id="frameOffset" min="0" max="1" step="0.05" value="0.5">
+            <span id="frameOffsetVal">0.50</span>
+            <input type="number" id="padBeforeSec" value="0" min="0" max="30" step="1">
+            <input type="number" id="padAfterSec" value="2" min="0" max="30" step="1">
+            <button id="btnMixerToggle" type="button">Mixer</button>
+        </div>
+        <input type="number" id="fsSubHeight" value="20" min="5" max="80" step="5">
+        <input type="number" id="fsAlphaBottom" value="80" min="0" max="100" step="10">
+        <input type="number" id="fsAlphaTop" value="30" min="0" max="100" step="10">
+        <input type="number" id="mxFileTarget" value="-18">
+        <input type="range" id="mxFileTrim" min="-18" max="18" value="0">
+        <input type="number" id="mxMicTarget" value="-18">
+        <input type="range" id="mxMicTrim" min="-18" max="18" value="0">
+        <input type="range" id="mxMonitor" min="0" max="100" value="50">
+        <span id="mxFileMeasured"></span>
+        <button id="mxFileAuto" type="button">Auto</button>
+        <div id="mixerPanel"></div>
+    </div>
+
+    <div id="save-share-container"></div>
+
+    <script src="/static/ref-audio-player.js"></script>
+    <script src="/static/shared/preset-selector.js"></script>
+    <script src="/static/shared/save-share.js"></script>
+    <script type="module" src="/static/omni/omni-app.js"></script>
+    <script type="module" src="/static/cyber-eyes/cyber-eyes.js"></script>
+</body>
+</html>
