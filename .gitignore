@@ -1,0 +1,29 @@
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+*.pyc
+*.pyo
+
+# Node
+node_modules/
+
+# Runtime data
+config.json
+certs/
+data/
+tmp/
+torch_compile_cache/
+workspace/
+
+# Local sources and archives
+MiniCPM-o-Demo-main.zip
+_restore_zip/
+fresh_extract_2/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

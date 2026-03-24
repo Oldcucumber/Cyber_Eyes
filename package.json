@@ -1,0 +1,13 @@
+{
+  "name": "cyber-eyes-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frontend checks and utilities for the Cyber Eyes guide client.",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,31 +1,46 @@
-# Cyber_Eyes
+# Cyber Eyes
 
-> **Web端盲人出行辅助系统**
+Cyber Eyes is a productized local deployment of MiniCPM-o full-duplex multimodal interaction for blind-assistance scenarios. The repo is trimmed to one public experience: a real-time, interruptible guidance client that prioritizes hazard alerts, action-first prompts, and operator-friendly deployment.
 
-## 项目简介
+## Repository Layout
 
-这是一个基于 Web 的人工智能项目，是我本科阶段的毕业设计。在当前的市场环境中，各类 AI 琳琅满目，许多商业化的视觉大模型和多模态模型在技术展示上十分耀眼，却往往仅服务于高端市场——高昂的部署与使用成本筑起了一堵无形的墙，令许多真正有需要的少数群体只能望而兴叹。
+- `backend/`: gateway, worker, model integration, session utilities
+- `frontend/`: Cyber Eyes web client and duplex runtime
+- `ops/`: bare-metal deployment, host preflight, install helpers
+- `vendor/`: vendorized MiniCPM-o runtime code
+- `assets/`: default reference audio and bundled runtime assets
+- `docs/`: deployment and validation notes
+- `tests/`: retained low-level tests and mock worker helpers
 
-## 项目愿景
+## Bare-Metal Quick Start
 
-在这个 AI 技术蓬勃发展的时代，我们似乎遗失了世纪初那份朴素的人文关怀。我们的社会中有像盲人这样的群体，他们在日常出行中面临困难和风险，这正是需要技术温度的地方。商业化应用固然有其价值，但进步的技术，更应该惠及那些真正需要帮助的人。
+1. Provision a Linux host with an NVIDIA GPU.
+2. Review the deployment guide in [`docs/deployment.md`](/D:/gpd/Cyber_Eyes/docs/deployment.md).
+3. Run the interactive bootstrap:
 
-我虽然是一个还在学习的开发者，但我相信好的技术，不在于堆砌多少前沿要素，而在于它能否为真实人群带来生活的改变。
+```bash
+bash ops/bootstrap.sh
+```
 
-## 项目目标
+The bootstrap path is bare-metal first:
 
-借助本科毕业设计这一机会，Cyber_Eyes项目致力于构建一款**开源且低成本**的视觉辅助工具。用户不需要昂贵的专用设备或复杂的操作流程，仅需：
+- ModelScope is preferred for model download and falls back to Hugging Face.
+- HTTPS is enabled by default using a self-signed certificate.
+- Internal workers bind to `127.0.0.1`; only the gateway port needs to be opened externally.
+- Docker is intentionally removed from the primary path to avoid GPU/runtime compatibility drift.
 
-- 一部普通的智能手机
-- Chrome浏览器
+## Useful Commands
 
-就能获得足够的出行辅助。
+```bash
+bash ops/install_system_deps_ubuntu.sh --print-only
+bash ops/install_cuda_ubuntu.sh --print-only
+bash ops/bootstrap.sh --yes --source auto
+bash ops/start_all.sh
+bash ops/stop_all.sh
+```
 
+## Operational Notes
 
-## 参与贡献
-
-欢迎为项目添砖加瓦，世界因为你的帮助而更美好。
-
----
-
-**希望让每个人都能感受科技带来的乐趣**
+- The validated software baseline is Linux + Python 3.10 + PyTorch 2.8.0 CUDA 12.8 wheels.
+- Camera and microphone access require HTTPS in normal browser deployments.
+- The frontend sends structured `assist_context` to the worker so the backend owns the final guidance policy.
