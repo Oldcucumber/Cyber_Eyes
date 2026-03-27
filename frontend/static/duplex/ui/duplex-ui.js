@@ -14,6 +14,16 @@ import {
     buildBackendHttpUrl,
 } from '../../lib/backend-targets.js';
 
+async function fetchWithTimeout(url, timeoutMs = 1600) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { signal: controller.signal });
+    } finally {
+        window.clearTimeout(timer);
+    }
+}
+
 export class MetricsPanel {
     constructor() {
         // Cache DOM elements on first access
@@ -382,7 +392,7 @@ export function initHealthCheck(badgeId) {
 
     async function check() {
         try {
-            const resp = await fetch(buildBackendHttpUrl('/status'));
+            const resp = await fetchWithTimeout(buildBackendHttpUrl('/status'));
             if (!resp.ok) throw new Error(`status ${resp.status}`);
             const data = await resp.json();
             const idleWorkers = Number.isFinite(Number(data.idle_workers)) ? Number(data.idle_workers) : 0;
@@ -423,7 +433,7 @@ export function wireDuplexControls({ onStart, onStop, onPause, onForceListen }) 
 
 export async function loadFrontendDefaults() {
     try {
-        const resp = await fetch(buildBackendHttpUrl('/api/frontend_defaults'));
+        const resp = await fetchWithTimeout(buildBackendHttpUrl('/api/frontend_defaults'), 1400);
         if (!resp.ok) return;
         const defaults = await resp.json();
         if (defaults.playback_delay_ms != null) {

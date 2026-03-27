@@ -222,6 +222,11 @@ function byId(id) {
     return document.getElementById(id);
 }
 
+function isDeveloperModePage() {
+    const path = window.location.pathname.replace(/index\.html$/i, '').replace(/\/+$/, '');
+    return path.endsWith('/dev');
+}
+
 function renderBackendTargetMeta(target = getActiveBackendTarget()) {
     const meta = describeBackendTarget(target);
     const quickPill = byId('ceBackendQuickPill');
@@ -536,18 +541,18 @@ function computeSessionState() {
 }
 
 function buildControlHint(sessionState = computeSessionState()) {
-    let hint = '先点“开始导盲”，需要补充一句需求时按住“按住说话”。';
+    let hint = '点开始后即可使用。需要插话时按住“按住说话”。';
 
     if (sessionState === '导盲中') {
-        hint = '正在导盲。需要插话时按住“按住说话”，松开后恢复播报。';
+        hint = '正在导盲。需要说话时按住“按住说话”。';
     } else if (sessionState === '准备中') {
-        hint = '正在建立导盲会话，请保持镜头朝向前方并稍等。';
+        hint = '正在连接，请稍等。';
     } else if (sessionState === '已暂停' || sessionState === '暂停中' || sessionState === '恢复中') {
-        hint = '当前已暂停。继续后才会恢复导盲与环境感知。';
+        hint = '已暂停。继续后恢复。';
     }
 
     if (sessionState === '导盲中' && isPreparedContextStale()) {
-        hint += ' 你刚修改了任务画像，重启导盲后后端才会完整采用。';
+        hint += ' 当前改动会在下次开始时生效。';
     }
     return hint;
 }
@@ -597,31 +602,31 @@ function buildSessionAlert(sessionState) {
         case '准备中':
             return {
                 level: 'info',
-                prefix: '正在建立',
-                title: '正在接入摄像头和语音链路',
-                body: '请保持镜头朝向前方，系统就绪后会开始持续导盲。',
+                prefix: '连接中',
+                title: '正在连接',
+                body: '请稍等。',
             };
         case '已暂停':
         case '暂停中':
             return {
                 level: 'caution',
                 prefix: '已暂停',
-                title: '导盲已暂停',
-                body: '恢复后才会继续感知环境和播报。',
+                title: '已暂停',
+                body: '继续后恢复。',
             };
         case '导盲中':
             return {
                 level: 'clear',
-                prefix: '已开始',
-                title: '导盲进行中',
-                body: '一旦出现危险，系统会优先打断并提醒。',
+                prefix: '进行中',
+                title: '正在导盲',
+                body: '有风险会先提醒。',
             };
         default:
             return {
                 level: 'idle',
                 prefix: '当前状态',
-                title: '等待启动',
-                body: '开始后，这里会固定显示最近一条危险或动作指令。',
+                title: '等待开始',
+                body: '开始后，这里会显示当前指令。',
             };
     }
 }
@@ -647,24 +652,24 @@ function buildAlertData(text) {
     if (level === 'info') {
         return {
             level,
-            prefix: '目标信息',
-            title: title || '发现与目标相关的新线索',
-            body: body || '这是当前任务直接相关的新信息。',
+            prefix: '目标',
+            title: title || '发现目标线索',
+            body: body || '请按提示继续。',
         };
     }
     if (level === 'clear') {
         return {
             level,
-            prefix: '路线稳定',
-            title: title || '路线暂时稳定',
-            body: body || '没有新的即时危险时，助手会保持克制。',
+            prefix: '通行',
+            title: title || '路线稳定',
+            body: body || '可继续移动。',
         };
     }
     return {
         level: 'caution',
-        prefix: '当前动作',
-        title: title || '请按当前动作继续',
-        body: body || '这是最近一条可执行动作建议。',
+        prefix: '动作',
+        title: title || '请按提示移动',
+        body: body || '按当前提示继续。',
     };
 }
 
@@ -773,12 +778,12 @@ function refreshStatus() {
     if (sessionState !== lastSessionState) {
         if (lastSessionState) {
             const sessionAnnouncementMap = {
-                '导盲中': '导盲已开始',
-                '准备中': '正在建立导盲会话',
-                '已暂停': '导盲已暂停',
-                '暂停中': '正在暂停导盲',
-                '恢复中': '正在恢复导盲',
-                '待机': '导盲已停止',
+                '导盲中': '已开始',
+                '准备中': '正在连接',
+                '已暂停': '已暂停',
+                '暂停中': '正在暂停',
+                '恢复中': '正在恢复',
+                '待机': '已结束',
             };
             announcePolite(sessionAnnouncementMap[sessionState] || sessionState);
         }
@@ -786,7 +791,7 @@ function refreshStatus() {
     }
 
     if (startBtn) {
-        startBtn.textContent = startBtn.disabled ? '导盲进行中' : '开始导盲';
+        startBtn.textContent = startBtn.disabled ? '进行中' : '开始';
     }
     if (pauseBtn) {
         if (/pausing/i.test(pauseBtn.textContent)) pauseBtn.textContent = '暂停中...';
@@ -799,7 +804,7 @@ function refreshStatus() {
         forceBtn.textContent = forceBtn.classList.contains('force-listen-active') ? '恢复导盲' : '我在说话';
     }
     if (hdBtn) {
-        hdBtn.textContent = byId('visionHD')?.checked ? '细节增强已开' : '细节增强';
+        hdBtn.textContent = byId('visionHD')?.checked ? '细节已开' : '细节';
     }
 
     const fsStart = byId('fsBtnStart');
@@ -807,7 +812,7 @@ function refreshStatus() {
     const fsForce = byId('fsBtnForceListen');
     const fsHD = byId('fsBtnHD');
     const fsStop = byId('fsBtnStop');
-    if (fsStart) fsStart.textContent = startBtn?.disabled ? '导盲进行中' : '开始导盲';
+    if (fsStart) fsStart.textContent = startBtn?.disabled ? '进行中' : '开始';
     if (fsPause) fsPause.textContent = pauseBtn?.textContent || '暂停';
     if (fsForce) fsForce.textContent = forceBtn?.textContent || '我在说话';
     if (fsHD) fsHD.textContent = hdBtn?.textContent || '细节增强';
@@ -845,7 +850,7 @@ function refreshConversationSummary() {
 
     if (badge) {
         if (!last) {
-            badge.textContent = '等待启动';
+            badge.textContent = '等待开始';
         } else {
             const text = normalizeText(last.querySelector('.conv-text')?.textContent || '');
             if (last.classList.contains('system')) {
@@ -1030,6 +1035,8 @@ function installAccessibilityLabels() {
 }
 
 function init() {
+    document.body.classList.toggle('ce-dev-mode', isDeveloperModePage());
+    document.title = isDeveloperModePage() ? 'Cyber Eyes 开发者模式' : 'Cyber Eyes 导盲模式';
     ensureStateConsistency();
     syncAllSelections();
     registerPrepareHook();

@@ -218,6 +218,18 @@ async def cyber_eyes_slash() -> RedirectResponse:
     return RedirectResponse(url='/cyber-eyes', status_code=302)
 
 
+@app.get('/dev', response_class=HTMLResponse)
+async def dev_page() -> HTMLResponse | FileResponse:
+    if os.path.isfile(CYBER_EYES_PAGE):
+        return FileResponse(CYBER_EYES_PAGE)
+    return HTMLResponse('<h1>Cyber Eyes Dev</h1><p>Frontend page not found.</p>', status_code=500)
+
+
+@app.get('/dev/', response_class=HTMLResponse)
+async def dev_page_slash() -> RedirectResponse:
+    return RedirectResponse(url='/dev', status_code=302)
+
+
 async def _safe_close_client(ws: WebSocket, code: int = 1000, reason: str = '') -> None:
     try:
         await ws.close(code=code, reason=reason)

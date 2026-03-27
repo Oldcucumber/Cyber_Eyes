@@ -35,6 +35,14 @@ await fs.writeFile(
     .replaceAll('./static/', '../static/'),
   'utf8',
 );
+await fs.mkdir(path.join(distDir, 'dev'), { recursive: true });
+await fs.writeFile(
+  path.join(distDir, 'dev', 'index.html'),
+  html
+    .replaceAll('./frontend-config.js', '../frontend-config.js')
+    .replaceAll('./static/', '../static/'),
+  'utf8',
+);
 await fs.writeFile(path.join(distDir, 'frontend-config.js'), toFrontendConfigScript(config), 'utf8');
 await fs.writeFile(path.join(distDir, '404.html'), html, 'utf8');
 await fs.writeFile(path.join(distDir, '.nojekyll'), '', 'utf8');

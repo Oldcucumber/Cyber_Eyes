@@ -125,6 +125,13 @@ async function resolveCyberEyesHtml() {
   return readCyberEyesHtml(projectRoot);
 }
 
+async function resolveDevHtml() {
+  if (useDist) {
+    return fs.readFile(path.join(projectRoot, 'dist', 'dev', 'index.html'), 'utf8');
+  }
+  return readCyberEyesHtml(projectRoot);
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://frontend.local');
 
@@ -155,6 +162,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (!useDist && url.pathname === '/dev/') {
+    res.writeHead(302, { Location: '/dev' });
+    res.end();
+    return;
+  }
+
   if (url.pathname === '/') {
     const html = await resolveRootHtml();
     res.writeHead(200, {
@@ -167,6 +180,16 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/cyber-eyes' || url.pathname === '/cyber-eyes/') {
     const html = await resolveCyberEyesHtml();
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache',
+    });
+    res.end(html);
+    return;
+  }
+
+  if (url.pathname === '/dev' || url.pathname === '/dev/') {
+    const html = await resolveDevHtml();
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-cache',

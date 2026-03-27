@@ -15,8 +15,8 @@
     <header class="ce-header">
         <div>
             <p class="ce-kicker">Cyber Eyes</p>
-            <h1>危险优先的实时导盲</h1>
-            <p class="ce-subtitle">默认短句播报，允许随时打断。盲人用户主要依赖语音和固定指令区；画面、日志和高级设置主要给陪同者或部署者核对。</p>
+            <h1>实时导盲</h1>
+            <p class="ce-subtitle">短句播报，可随时打断。</p>
         </div>
         <div class="ce-header-actions">
             <span class="ce-pill ce-pill-static">HTTPS 已启用</span>
@@ -30,8 +30,8 @@
         <section class="ce-stage-card" id="ceStageCard">
             <div class="ce-card-head">
                 <div>
-                    <p class="ce-label">导盲主视图</p>
-                    <h2>固定指令与取景核对</h2>
+                    <p class="ce-label">主界面</p>
+                    <h2>当前提示</h2>
                 </div>
                 <div class="ce-stage-meta">
                     <span class="ce-mini-status" id="ceSessionState">待机</span>
@@ -42,15 +42,15 @@
             <section class="ce-alert-strip is-idle" id="ceAlertStrip" role="status" aria-live="polite" aria-atomic="true">
                 <div class="ce-alert-prefix" id="ceAlertLevel">当前状态</div>
                 <div class="ce-alert-copy">
-                    <strong id="ceAlertTitle">等待启动</strong>
-                    <p id="ceAlertBody">开始后，这里会固定显示最近一条危险或动作指令，方便用户和陪同者快速确认。</p>
+                    <strong id="ceAlertTitle">等待开始</strong>
+                    <p id="ceAlertBody">开始后，这里会显示当前指令。</p>
                 </div>
             </section>
 
             <section class="ce-guidance-card" aria-labelledby="ceGuidanceHeading">
-                <p class="ce-label" id="ceGuidanceHeading">当前一句话</p>
-                <div class="ce-guidance-quote" id="ceLatestGuidance">前方安全时，助手会保持安静；有危险时会先说“停一下”。</div>
-                <p class="ce-guidance-meta" id="ceGuidanceMeta">默认顺序：危险或目标 -> 方向距离 -> 下一步动作。</p>
+                <p class="ce-label" id="ceGuidanceHeading">最近一句</p>
+                <div class="ce-guidance-quote" id="ceLatestGuidance">有危险时会先说“停一下”。</div>
+                <p class="ce-guidance-meta" id="ceGuidanceMeta">顺序：危险 -> 方向 -> 动作。</p>
             </section>
 
             <p class="ce-support-copy">摄像头画面主要供陪同者确认取景和设备状态。盲人用户的主交互入口是语音、下方大按钮和实时播报。</p>
@@ -210,24 +210,24 @@
                 <div class="ce-card-head">
                     <div>
                         <p class="ce-label">语音控制</p>
-                        <h2>少按钮，能打断</h2>
+                        <h2>控制</h2>
                     </div>
                     <div class="ce-mini-status" id="ceAudioState">可被打断</div>
                 </div>
 
-                <p class="ce-control-hint" id="ceControlHint">先点“开始导盲”，需要补充一句需求时按住“按住说话”。</p>
+                <p class="ce-control-hint" id="ceControlHint">点开始后即可使用。需要插话时按住“按住说话”。</p>
 
                 <div class="ce-control-grid">
-                    <button class="ctrl-btn primary ce-main-btn" id="btnStart" type="button">开始导盲</button>
+                    <button class="ctrl-btn primary ce-main-btn" id="btnStart" type="button">开始</button>
                     <button class="ctrl-btn ce-main-btn ce-hold-btn ce-wide-btn" id="btnHoldToTalk" disabled type="button" aria-describedby="ceHoldHelp" aria-pressed="false">按住说话</button>
                     <button class="ctrl-btn ce-main-btn" id="btnPause" disabled type="button">暂停</button>
-                    <button class="ctrl-btn ce-main-btn" id="btnHD" disabled type="button">细节增强</button>
+                    <button class="ctrl-btn ce-main-btn" id="btnHD" disabled type="button">细节</button>
                     <button class="ctrl-btn danger ce-main-btn ce-stop-btn" id="btnStop" disabled type="button">结束</button>
                     <button class="ctrl-btn ce-main-btn ce-hidden-control" id="btnForceListen" disabled type="button" tabindex="-1" aria-hidden="true">我在说话</button>
                     <button class="ctrl-btn ce-main-btn ce-hidden-control ce-download-btn" id="btnDownloadRec" style="display:none;" disabled type="button">下载录制</button>
                 </div>
 
-                <p class="ce-hold-help" id="ceHoldHelp">按住期间，系统优先听你说；松开后恢复导盲。</p>
+                <p class="ce-hold-help" id="ceHoldHelp">按住时优先收音。松开后继续。</p>
 
                 <div class="ce-inline-toggles">
                     <label class="ce-check"><input type="checkbox" id="recCheckbox"> 录制会话（陪同者）</label>
@@ -242,7 +242,7 @@
                         <p class="ce-label">陪同者查看</p>
                         <h2>文字回显</h2>
                     </div>
-                    <div class="ce-mini-status" id="ceLastSignal">等待启动</div>
+                    <div class="ce-mini-status" id="ceLastSignal">等待开始</div>
                 </div>
                 <p class="ce-log-note">这里只用于辅助核对，不是盲人用户的主要交互入口。</p>
                 <div class="panel-dialog ce-dialog-panel">
