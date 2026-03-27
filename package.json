@@ -2,10 +2,17 @@
   "name": "cyber-eyes-frontend",
   "version": "1.0.0",
   "private": true,
-  "description": "Frontend checks and utilities for the Cyber Eyes guide client.",
+  "description": "Build, serve, and validate the split-deployed Cyber Eyes frontend.",
   "scripts": {
+    "build": "node scripts/frontend/build.mjs",
+    "dev": "node scripts/frontend/server.mjs --port 3000",
+    "preview": "node scripts/frontend/server.mjs --dist --port 4173",
+    "start": "node scripts/frontend/server.mjs --dist --port 3000",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "dependencies": {
+    "http-proxy": "^1.18.1"
   },
   "devDependencies": {
     "vitest": "^3.2.4"

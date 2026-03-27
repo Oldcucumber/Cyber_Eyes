@@ -14,7 +14,8 @@ from typing import Any, Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import get_config
@@ -88,6 +89,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+try:
+    cors_allowed_origins = [origin.strip() for origin in get_config().frontend_cors_allowed_origins if origin.strip()]
+except Exception as exc:
+    cors_allowed_origins = []
+    logger.warning('Frontend CORS origins are unavailable until config.json is ready: %s', exc)
+
+if cors_allowed_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_allowed_origins,
+        allow_credentials=False,
+        allow_methods=['*'],
+        allow_headers=['*'],
+    )
+
 if os.path.isdir(STATIC_DIR):
     app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 
@@ -131,6 +147,12 @@ async def workers() -> WorkersResponse:
 @app.get('/api/frontend_defaults')
 async def frontend_defaults() -> dict[str, Any]:
     return get_config().frontend_defaults()
+
+
+@app.get('/frontend-config.js')
+async def frontend_config_js() -> Response:
+    config_script = f'window.__CYBER_EYES_FRONTEND_CONFIG__ = {json.dumps(get_config().frontend_runtime_config(), ensure_ascii=False, indent=2)};\n'
+    return Response(content=config_script, media_type='application/javascript')
 
 
 @app.get('/api/default_ref_audio')
@@ -189,6 +211,11 @@ async def cyber_eyes() -> HTMLResponse | FileResponse:
     if os.path.isfile(CYBER_EYES_PAGE):
         return FileResponse(CYBER_EYES_PAGE)
     return HTMLResponse('<h1>Cyber Eyes</h1><p>Frontend page not found.</p>', status_code=500)
+
+
+@app.get('/cyber-eyes/', response_class=HTMLResponse)
+async def cyber_eyes_slash() -> RedirectResponse:
+    return RedirectResponse(url='/cyber-eyes', status_code=302)
 
 
 async def _safe_close_client(ws: WebSocket, code: int = 1000, reason: str = '') -> None:

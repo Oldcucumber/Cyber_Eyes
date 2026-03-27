@@ -1,0 +1,14 @@
+{
+    "defaultTargetId": "local_minicpm",
+    "targets": [
+        {
+            "id": "local_minicpm",
+            "label": "本地 MiniCPM 后端",
+            "mode": "proxy",
+            "httpBaseUrl": "https://127.0.0.1:8006",
+            "wsBaseUrl": "wss://127.0.0.1:8006",
+            "enabled": true,
+            "description": "默认通过前端服务代理到本机或同机房的 MiniCPM 网关。"
+        }
+    ]
+}

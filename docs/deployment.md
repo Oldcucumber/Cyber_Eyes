@@ -1,6 +1,11 @@
-# Cyber Eyes Bare-Metal Deployment
+# Cyber Eyes Deployment
 
-This repository is intentionally optimized for non-Docker deployment. The supported path is a Linux host with an NVIDIA GPU, local MiniCPM-o weights, a Python 3.10 virtualenv, and one public HTTPS port exposed by the gateway.
+This repository now supports two independent deployment planes:
+
+- backend deployment: MiniCPM worker + gateway, optimized for bare-metal Linux with an NVIDIA GPU
+- frontend deployment: a standalone Cyber Eyes web client that can be served locally with `npm`, uploaded as static files, or published through GitHub Pages
+
+The backend path is still optimized for non-Docker deployment. The supported backend baseline is a Linux host with an NVIDIA GPU, local MiniCPM-o weights, a Python 3.10 virtualenv, and one public HTTPS port exposed by the gateway.
 
 ## 1. Target Baseline
 
@@ -169,7 +174,84 @@ bash ops/stop_all.sh
 
 Recording defaults are bounded to 7 days and 20 GB unless you override them during bootstrap.
 
-## 8. Remote Validation Checklist
+## 8. Split Frontend Deployment
+
+The frontend can now be deployed separately from the MiniCPM backend.
+
+### 8.1 Local proxy mode
+
+This is the default local workflow:
+
+```bash
+npm install
+cp frontend/config/backend-targets.example.json frontend/config/backend-targets.local.json
+npm run dev
+```
+
+Then edit `frontend/config/backend-targets.local.json` so the default target points at your local gateway:
+
+- `mode: "proxy"` means the browser only talks to the frontend server
+- `httpBaseUrl` / `wsBaseUrl` are the upstream MiniCPM gateway addresses that the frontend server proxies to
+
+The request path becomes:
+
+1. user browser -> frontend server
+2. frontend server -> MiniCPM gateway
+3. MiniCPM gateway -> local workers
+
+### 8.2 Remote direct mode
+
+To allow the browser to talk to an approved remote backend directly:
+
+1. add a `direct` target in `frontend/config/backend-targets.local.json`
+2. set `httpBaseUrl` and `wsBaseUrl` to the remote backend origin
+3. add the frontend origin to `config.json -> frontend -> cors_allowed_origins` on the backend
+
+In direct mode the access path becomes:
+
+1. user browser -> frontend host
+2. user browser -> remote MiniCPM gateway
+
+The frontend and backend are visited independently, and the frontend proxy is bypassed.
+
+### 8.3 Static build
+
+Build a deployable frontend bundle:
+
+```bash
+npm install
+npm run build
+```
+
+Output directory:
+
+- `dist/`
+
+Useful commands:
+
+```bash
+npm run dev
+npm run preview
+npm run start
+```
+
+### 8.4 GitHub Pages / Actions deployment
+
+A workflow is included at `.github/workflows/frontend-deploy.yml`.
+
+For a useful Pages deployment, configure repository variables before enabling the workflow:
+
+- `CYBER_EYES_REMOTE_HTTP_BASE_URL`
+- `CYBER_EYES_REMOTE_WS_BASE_URL`
+- `CYBER_EYES_ACTIVE_TARGET_ID`
+- optionally `CYBER_EYES_REMOTE_TARGET_ID`
+- optionally `CYBER_EYES_REMOTE_TARGET_LABEL`
+- optionally `CYBER_EYES_REMOTE_TARGET_DESCRIPTION`
+- optionally `CYBER_EYES_REMOTE_TARGET_MODE`
+
+The workflow builds `dist/` and publishes it to GitHub Pages. If the remote backend variables are absent, the deployed frontend will still build, but the default target will remain local proxy mode and will not work on Pages.
+
+## 9. Remote Validation Checklist
 
 Once the service is up, verify in this order:
 
@@ -182,6 +264,17 @@ Once the service is up, verify in this order:
 7. Hold the hold-to-talk button and verify the model yields to the user immediately
 8. Check `tmp/gateway.log` and `tmp/worker_0.log` if startup or streaming stalls
 
-## 9. Network Surface
+For split frontend deployment, also verify:
+
+9. Open the standalone frontend host and confirm the backend target selector points at the expected backend
+10. In proxy mode, verify `/status` succeeds through the frontend server
+11. In direct mode, verify the backend replies with the expected `Access-Control-Allow-Origin`
+
+## 10. Network Surface
 
 Only the gateway port needs to be exposed externally. Worker processes bind to `127.0.0.1` and are not intended for direct remote access.
+
+When the frontend is deployed separately:
+
+- local proxy mode exposes only the frontend port to users; the frontend server then reaches the backend
+- remote direct mode exposes the frontend host and the backend host independently

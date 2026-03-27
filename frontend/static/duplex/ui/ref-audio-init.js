@@ -13,6 +13,8 @@
  * @param {function} [callbacks.onTtsHintUpdate] - Called after default ref audio loads (for TTS hint refresh)
  * @returns {{ getBase64: () => string|null, getName: () => string, isDefault: () => boolean, rap: RefAudioPlayer }}
  */
+import { buildBackendHttpUrl } from '../../lib/backend-targets.js';
+
 export function initRefAudio(containerId, callbacks = {}) {
     const RefAudioPlayer = window.RefAudioPlayer;
     let base64 = null;
@@ -35,7 +37,7 @@ export function initRefAudio(containerId, callbacks = {}) {
     });
 
     async function loadDefaultRefAudio({ updateHint = false } = {}) {
-        const resp = await fetch('/api/default_ref_audio');
+        const resp = await fetch(buildBackendHttpUrl('/api/default_ref_audio'));
         if (!resp.ok) {
             throw new Error(`default ref audio request failed (${resp.status})`);
         }

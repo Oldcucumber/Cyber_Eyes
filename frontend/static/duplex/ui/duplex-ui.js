@@ -9,6 +9,11 @@
 // MetricsPanel — Translates metrics data objects into DOM updates
 // ============================================================================
 
+import {
+    BACKEND_TARGET_CHANGE_EVENT,
+    buildBackendHttpUrl,
+} from '../../lib/backend-targets.js';
+
 export class MetricsPanel {
     constructor() {
         // Cache DOM elements on first access
@@ -377,7 +382,7 @@ export function initHealthCheck(badgeId) {
 
     async function check() {
         try {
-            const resp = await fetch('/status');
+            const resp = await fetch(buildBackendHttpUrl('/status'));
             if (!resp.ok) throw new Error(`status ${resp.status}`);
             const data = await resp.json();
             const idleWorkers = Number.isFinite(Number(data.idle_workers)) ? Number(data.idle_workers) : 0;
@@ -392,7 +397,12 @@ export function initHealthCheck(badgeId) {
 
     check();
     const intervalId = setInterval(check, 10000);
-    return () => clearInterval(intervalId);
+    const onTargetChange = () => check();
+    window.addEventListener(BACKEND_TARGET_CHANGE_EVENT, onTargetChange);
+    return () => {
+        clearInterval(intervalId);
+        window.removeEventListener(BACKEND_TARGET_CHANGE_EVENT, onTargetChange);
+    };
 }
 
 // ============================================================================
@@ -413,7 +423,7 @@ export function wireDuplexControls({ onStart, onStop, onPause, onForceListen }) 
 
 export async function loadFrontendDefaults() {
     try {
-        const resp = await fetch('/api/frontend_defaults');
+        const resp = await fetch(buildBackendHttpUrl('/api/frontend_defaults'));
         if (!resp.ok) return;
         const defaults = await resp.json();
         if (defaults.playback_delay_ms != null) {

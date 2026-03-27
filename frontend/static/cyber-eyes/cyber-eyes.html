@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cyber Eyes 导盲模式</title>
-    <link rel="stylesheet" href="/static/duplex/duplex-shared.css">
-    <link rel="stylesheet" href="/static/runtime/duplex-runtime.css">
-    <link rel="stylesheet" href="/static/cyber-eyes/cyber-eyes.css">
+    <link rel="stylesheet" href="./static/duplex/duplex-shared.css">
+    <link rel="stylesheet" href="./static/runtime/duplex-runtime.css">
+    <link rel="stylesheet" href="./static/cyber-eyes/cyber-eyes.css">
 </head>
 <body class="cyber-eyes-app">
     <div class="ce-sr-only" id="ceLivePolite" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -263,6 +263,29 @@
         </div>
 
         <div class="ce-advanced-grid">
+            <details class="config-group" open>
+                <summary>部署与后端目标</summary>
+                <div class="cg-body">
+                    <div class="cg-row">
+                        <span class="cg-label">目标后端</span>
+                        <select class="cg-select" id="backendTargetSelect"></select>
+                    </div>
+                    <div class="cg-row">
+                        <span class="cg-label">连接方式</span>
+                        <span class="ce-backend-pill" id="backendTargetMode">前端代理到后端</span>
+                    </div>
+                    <div class="cg-row">
+                        <span class="cg-label">浏览器入口</span>
+                        <code class="ce-backend-endpoint" id="backendBrowserEndpoint">等待配置...</code>
+                    </div>
+                    <div class="cg-row">
+                        <span class="cg-label">后端地址</span>
+                        <code class="ce-backend-endpoint" id="backendTargetUrl">等待配置...</code>
+                    </div>
+                    <p class="ce-backend-note" id="backendTargetDesc">前端将根据这里的目标决定是走本地代理，还是让浏览器直接访问允许的远端后端。</p>
+                </div>
+            </details>
+
             <details class="config-group">
                 <summary>音频与设备</summary>
                 <div class="cg-body">
@@ -359,9 +382,10 @@
         <div id="mixerPanel"></div>
     </div>
 
-    <script src="/static/ref-audio-player.js"></script>
-    <script type="module" src="/static/runtime/duplex-runtime.js"></script>
-    <script type="module" src="/static/cyber-eyes/cyber-eyes.js"></script>
+    <script src="./frontend-config.js"></script>
+    <script src="./static/ref-audio-player.js"></script>
+    <script type="module" src="./static/runtime/duplex-runtime.js"></script>
+    <script type="module" src="./static/cyber-eyes/cyber-eyes.js"></script>
 </body>
 </html>
 

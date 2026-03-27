@@ -8,6 +8,7 @@
  */
 
 import { AudioPlayer } from './audio-player.js';
+import { buildBackendWsUrl } from '../../lib/backend-targets.js';
 
 export class DuplexSession {
     /**
@@ -23,10 +24,7 @@ export class DuplexSession {
             getMaxKvTokens: config.getMaxKvTokens || (() => 8192),
             getPlaybackDelayMs: config.getPlaybackDelayMs || (() => 200),
             outputSampleRate: config.outputSampleRate || 24000,
-            getWsUrl: config.getWsUrl || ((sessionId) => {
-                const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-                return `${proto}://${location.host}/ws/duplex/${sessionId}`;
-            }),
+            getWsUrl: config.getWsUrl || ((sessionId) => buildBackendWsUrl(`/ws/duplex/${sessionId}`)),
         };
 
         this.ws = null;

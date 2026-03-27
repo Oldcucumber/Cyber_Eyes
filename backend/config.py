@@ -45,12 +45,21 @@ class ServiceSectionConfig(BaseModel):
 
 class RecordingConfig(BaseModel):
     enabled: bool = Field(default=True)
-    session_retention_days: int = Field(default=-1)
-    max_storage_gb: float = Field(default=-1)
+    session_retention_days: int = Field(default=7)
+    max_storage_gb: float = Field(default=20)
 
 
 class DuplexSectionConfig(BaseModel):
     pause_timeout: float = Field(default=60.0)
+
+
+class FrontendSectionConfig(BaseModel):
+    cors_allowed_origins: List[str] = Field(default_factory=lambda: [
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+        "http://127.0.0.1:4173",
+        "http://localhost:4173",
+    ])
 
 
 class ServiceConfig(BaseModel):
@@ -59,6 +68,7 @@ class ServiceConfig(BaseModel):
     service: ServiceSectionConfig = Field(default_factory=ServiceSectionConfig)
     duplex: DuplexSectionConfig = Field(default_factory=DuplexSectionConfig)
     recording: RecordingConfig = Field(default_factory=RecordingConfig)
+    frontend: FrontendSectionConfig = Field(default_factory=FrontendSectionConfig)
 
     @property
     def gateway_port(self) -> int:
@@ -128,6 +138,10 @@ class ServiceConfig(BaseModel):
     def playback_delay_ms(self) -> int:
         return self.audio.playback_delay_ms
 
+    @property
+    def frontend_cors_allowed_origins(self) -> List[str]:
+        return list(self.frontend.cors_allowed_origins)
+
     def worker_port(self, worker_index: int) -> int:
         return self.worker_base_port + worker_index
 
@@ -136,6 +150,22 @@ class ServiceConfig(BaseModel):
 
     def frontend_defaults(self) -> dict:
         return {"playback_delay_ms": self.playback_delay_ms}
+
+    def frontend_runtime_config(self) -> dict:
+        return {
+            "defaultTargetId": "local_minicpm",
+            "targets": [
+                {
+                    "id": "local_minicpm",
+                    "label": "当前 MiniCPM 网关",
+                    "mode": "proxy",
+                    "httpBaseUrl": "",
+                    "wsBaseUrl": "",
+                    "enabled": True,
+                    "description": "当前页面由后端直接提供，浏览器请求会回到同源网关。",
+                },
+            ],
+        }
 
 
 def load_config(path: str = _CONFIG_PATH) -> ServiceConfig:

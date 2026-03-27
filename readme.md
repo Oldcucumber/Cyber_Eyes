@@ -2,6 +2,11 @@
 
 Cyber Eyes is a productized local deployment of MiniCPM-o full-duplex multimodal interaction for blind-assistance scenarios. The repo is trimmed to one public experience: a real-time, interruptible guidance client that prioritizes hazard alerts, action-first prompts, and operator-friendly deployment.
 
+The frontend can now be deployed independently from the MiniCPM backend:
+
+- local mode: user -> frontend server -> MiniCPM gateway
+- remote mode: user separately visits the frontend and the allowed remote MiniCPM gateway
+
 ## Repository Layout
 
 - `backend/`: gateway, worker, model integration, session utilities
@@ -32,6 +37,10 @@ The bootstrap path is bare-metal first:
 ## Useful Commands
 
 ```bash
+npm install
+npm run dev
+npm run build
+npm run preview
 bash ops/install_system_deps_ubuntu.sh --print-only
 bash ops/install_cuda_ubuntu.sh --print-only
 bash ops/bootstrap.sh --yes --source auto
@@ -44,3 +53,5 @@ bash ops/stop_all.sh
 - The validated software baseline is Linux + Python 3.10 + PyTorch 2.8.0 CUDA 12.8 wheels.
 - Camera and microphone access require HTTPS in normal browser deployments.
 - The frontend sends structured `assist_context` to the worker so the backend owns the final guidance policy.
+- Frontend target selection is driven by `frontend/config/backend-targets.json` or `frontend/config/backend-targets.local.json`.
+- A GitHub Pages workflow is included at `.github/workflows/frontend-deploy.yml`.
