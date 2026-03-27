@@ -28,7 +28,7 @@
     },
     "recording": {
         "enabled": true,
-        "session_retention_days": -1,
-        "max_storage_gb": -1
+        "session_retention_days": 7,
+        "max_storage_gb": 20
     }
 }

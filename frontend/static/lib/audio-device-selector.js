@@ -40,15 +40,16 @@ export class AudioDeviceSelector {
         this._prefix = storagePrefix;
         this._onMicChange = onMicChange || null;
         this._onSpeakerChange = onSpeakerChange || null;
+        this._hasMediaDevices = typeof navigator !== 'undefined' && !!navigator.mediaDevices;
 
         this._micKey = `${storagePrefix}_mic`;
         this._spkKey = `${storagePrefix}_speaker`;
 
-        this._micEl.addEventListener('change', () => {
+        this._micEl?.addEventListener('change', () => {
             localStorage.setItem(this._micKey, this._micEl.value);
             if (this._onMicChange) this._onMicChange(this._micEl.value);
         });
-        this._spkEl.addEventListener('change', () => {
+        this._spkEl?.addEventListener('change', () => {
             localStorage.setItem(this._spkKey, this._spkEl.value);
             if (this._onSpeakerChange) this._onSpeakerChange(this._spkEl.value);
         });
@@ -57,7 +58,9 @@ export class AudioDeviceSelector {
         }
 
         this._onDeviceChange = () => this.enumerate();
-        navigator.mediaDevices.addEventListener('devicechange', this._onDeviceChange);
+        if (this._hasMediaDevices && typeof navigator.mediaDevices.addEventListener === 'function') {
+            navigator.mediaDevices.addEventListener('devicechange', this._onDeviceChange);
+        }
     }
 
     async init() {
@@ -65,11 +68,24 @@ export class AudioDeviceSelector {
     }
 
     async enumerate() {
+        if (!this._hasMediaDevices || typeof navigator.mediaDevices.enumerateDevices !== 'function') {
+            this._renderUnavailable();
+            return;
+        }
+
+        let unlockStream = null;
         try {
-            await navigator.mediaDevices.getUserMedia({ audio: true });
+            if (typeof navigator.mediaDevices.getUserMedia === 'function') {
+                unlockStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            }
         } catch (_) { /* need permission to get labels */ }
 
-        const devices = await navigator.mediaDevices.enumerateDevices();
+        let devices = [];
+        try {
+            devices = await navigator.mediaDevices.enumerateDevices();
+        } finally {
+            unlockStream?.getTracks().forEach(track => track.stop());
+        }
         const mics = devices.filter(d => d.kind === 'audioinput');
         const speakers = devices.filter(d => d.kind === 'audiooutput');
 
@@ -99,6 +115,23 @@ export class AudioDeviceSelector {
                 if (d.deviceId === savedSpk) opt.selected = true;
                 this._spkEl.appendChild(opt);
             });
+        }
+    }
+
+    _renderUnavailable() {
+        if (this._micEl) {
+            this._micEl.innerHTML = '';
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'Microphone unavailable';
+            this._micEl.appendChild(opt);
+        }
+        if (this._spkEl) {
+            this._spkEl.innerHTML = '';
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'Speaker unavailable';
+            this._spkEl.appendChild(opt);
         }
     }
 

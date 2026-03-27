@@ -514,14 +514,14 @@ class RefAudioPlayer {
         if (!file) return;
         event.target.value = '';
 
+        let audioCtx = null;
         try {
             const arrayBuffer = await file.arrayBuffer();
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
 
             if (decoded.duration > 20) {
                 alert(`Audio too long: ${decoded.duration.toFixed(1)}s (max 20s)`);
-                audioCtx.close();
                 return;
             }
 
@@ -532,7 +532,6 @@ class RefAudioPlayer {
             source.connect(offlineCtx.destination);
             source.start();
             const resampled = await offlineCtx.startRendering();
-            audioCtx.close();
 
             const pcm = resampled.getChannelData(0);
             const bytes = new Uint8Array(pcm.buffer);
@@ -554,6 +553,10 @@ class RefAudioPlayer {
             this.onUpload(base64, file.name, decoded.duration);
         } catch (e) {
             alert('Failed to process audio: ' + e.message);
+        } finally {
+            if (audioCtx) {
+                try { await audioCtx.close(); } catch (_) {}
+            }
         }
     }
 }

@@ -1079,6 +1079,7 @@ function setPauseBtnState(state) {
         case 'active': btn.textContent = 'Pause'; btn.disabled = false; fsBtn.textContent = 'Pause'; fsBtn.disabled = false; break;
         case 'pausing': btn.textContent = 'Pausing...'; btn.disabled = true; fsBtn.textContent = 'Pausing...'; fsBtn.disabled = true; break;
         case 'paused': btn.textContent = 'Resume'; btn.disabled = false; fsBtn.textContent = 'Resume'; fsBtn.disabled = false; break;
+        case 'resuming': btn.textContent = 'Resuming...'; btn.disabled = true; fsBtn.textContent = 'Resuming...'; fsBtn.disabled = true; break;
     }
 }
 
@@ -1355,6 +1356,7 @@ function onFileSelected(input) {
 }
 
 async function measureFileLUFS(file) {
+    let tmpCtx = null;
     try {
         const measEl = document.getElementById('mxFileMeasured');
         const autoEl = document.getElementById('mxFileAuto');
@@ -1362,7 +1364,7 @@ async function measureFileLUFS(file) {
         if (autoEl) autoEl.textContent = '...';
 
         const arrayBuffer = await file.arrayBuffer();
-        const tmpCtx = new AudioContext();
+        tmpCtx = new AudioContext();
         const decoded = await tmpCtx.decodeAudioData(arrayBuffer.slice(0));
         const cappedDuration = Math.min(decoded.duration, FILE_MAX_DURATION);
         const targetFrames = Math.ceil(cappedDuration * SAMPLE_RATE_IN);
@@ -1373,18 +1375,21 @@ async function measureFileLUFS(file) {
         src.start();
         const resampled = await offCtx.startRendering();
         const pcm = resampled.getChannelData(0);
-        await tmpCtx.close();
 
         const srcLUFS = measureLUFS(pcm, SAMPLE_RATE_IN);
         const targetLUFS = parseFloat(document.getElementById('mxFileTarget')?.value) || -33;
         const autoGainDb = isFinite(srcLUFS) ? targetLUFS - srcLUFS : 0;
 
-        if (measEl) measEl.textContent = isFinite(srcLUFS) ? srcLUFS.toFixed(1) : '鈥?;
-        if (autoEl) autoEl.textContent = isFinite(srcLUFS) ? autoGainDb.toFixed(1) : '鈥?;
+        if (measEl) measEl.textContent = isFinite(srcLUFS) ? srcLUFS.toFixed(1) : '--';
+        if (autoEl) autoEl.textContent = isFinite(srcLUFS) ? autoGainDb.toFixed(1) : '--';
 
-        addSystemEntry(`File LUFS: ${isFinite(srcLUFS) ? srcLUFS.toFixed(1) : '鈥?} 鈫?auto ${autoGainDb.toFixed(1)} dB`);
+        addSystemEntry(`File LUFS: ${isFinite(srcLUFS) ? srcLUFS.toFixed(1) : '--'} -> auto ${autoGainDb.toFixed(1)} dB`);
     } catch (err) {
         console.warn('measureFileLUFS failed:', err);
+    } finally {
+        if (tmpCtx) {
+            try { await tmpCtx.close(); } catch (_) {}
+        }
     }
 }
 
@@ -1438,6 +1443,7 @@ async function startSession() {
         getPlaybackDelayMs: () => parseInt(document.getElementById('playbackDelay').value, 10) || 200,
         outputSampleRate: SAMPLE_RATE_OUT,
     });
+    const activeSession = session;
     session.onMetrics = (data) => metricsPanel.update(data);
     session.onSystemLog = addSystemEntry;
     session.onSpeakStart = (text) => {
@@ -1483,8 +1489,8 @@ async function startSession() {
         playAlarmBell();
     };
     session.onPrepared = async () => {
-        if (session.audioPlayer && session.audioPlayer._ctx) {
-            omniDeviceSelector.applySinkId(session.audioPlayer._ctx);
+        if (activeSession.audioPlayer && activeSession.audioPlayer._ctx) {
+            omniDeviceSelector.applySinkId(activeSession.audioPlayer._ctx);
         }
         await playSessionChime();
     };
@@ -1532,13 +1538,13 @@ async function startSession() {
         setPauseBtnState(state);
         if (session && session.running) {
             if (state === 'active') setStatusLamp('live');
-            else if (state === 'paused') setStatusLamp('preparing');
+            else setStatusLamp('preparing');
         }
         // Pause/resume media provider and recording to keep timeline aligned
-        if (state === 'paused' || state === 'pausing') {
+        if (state !== 'active') {
             if (media && media.pause) media.pause();
             if (sessionRecorder && sessionRecorder.pause) sessionRecorder.pause();
-        } else if (state === 'active') {
+        } else {
             if (media && media.resume) media.resume();
             if (sessionRecorder && sessionRecorder.resume) sessionRecorder.resume();
         }
@@ -1546,16 +1552,16 @@ async function startSession() {
     session.onForceListenChange = (active) => setForceListenBtnState(active);
     session.onExtraResult = (result, recvTime) => {
         if (!result.is_listen) {
-            const elapsed = session._sessionStartTime
-                ? ((recvTime - session._sessionStartTime) / 1000).toFixed(1) : '?';
+            const elapsed = activeSession._sessionStartTime
+                ? ((recvTime - activeSession._sessionStartTime) / 1000).toFixed(1) : '?';
             _diagEvents.push({
-                ev: 'chunk', n: session._resultCount, t: parseFloat(elapsed),
+                ev: 'chunk', n: activeSession._resultCount, t: parseFloat(elapsed),
                 model_ms: result.cost_all_ms || 0,
-                drift_ms: session._lastDriftMs,
-                ahead_ms: session.audioPlayer.lastAheadMs || 0,
-                gaps: session.audioPlayer.gapCount || 0,
-                shift_ms: session.audioPlayer.totalShiftMs || 0,
-                turn: session.audioPlayer.turnIdx || 0,
+                drift_ms: activeSession._lastDriftMs,
+                ahead_ms: activeSession.audioPlayer.lastAheadMs || 0,
+                gaps: activeSession.audioPlayer.gapCount || 0,
+                shift_ms: activeSession.audioPlayer.totalShiftMs || 0,
+                turn: activeSession.audioPlayer.turnIdx || 0,
             });
         }
     };
@@ -1600,26 +1606,28 @@ async function startSession() {
     try {
         // Wire AI audio recording hook
         if (sessionRecorder) {
-            session.audioPlayer.onRawAudio = (samples, sr, ts) => {
+            activeSession.audioPlayer.onRawAudio = (samples, sr, ts) => {
                 if (sessionRecorder) sessionRecorder.pushRight(samples, sr, ts);
             };
         }
 
-        await session.start(
+        await activeSession.start(
             systemPromptText,
             preparePayload,
             async () => {
                 media.onChunk = (chunk) => {
+                    if (!activeSession.running || session !== activeSession) return;
                     const msg = { type: 'audio_chunk', audio_base64: arrayBufferToBase64(chunk.audio.buffer) };
                     if (chunk.frameBase64) msg.frame_base64_list = [chunk.frameBase64];
                     const effectiveSlice = getEffectiveMaxSliceNums();
                     if (effectiveSlice > 1) msg.max_slice_nums = effectiveSlice;
-                    session.sendChunk(msg);
-                    updateTimeBadge(session.chunksSent);
+                    activeSession.sendChunk(msg);
+                    updateTimeBadge(activeSession.chunksSent);
                     // Fallback path: no-op when direct audio mode is active in recorder
                     if (sessionRecorder) sessionRecorder.pushLeft(chunk.audio);
                 };
                 media.onEnd = () => {
+                    if (session !== activeSession) return;
                     addSystemEntry('File playback completed (including padding). Auto-stopping session.');
                     stopSession();
                 };
@@ -1672,8 +1680,9 @@ function pauseSession() { if (session) session.pauseToggle(); }
 
 function stopSession() {
     if (!session) return;
-    if (_queuePhase) { session.cancelQueue(); } else { _sendSessionSummary(); session.stop(); }
-    session = null;
+    const activeSession = session;
+    if (_queuePhase) { activeSession.cancelQueue(); } else { _sendSessionSummary(); activeSession.stop(); }
+    if (session === activeSession) session = null;
     metricsPanel.update({ type: 'state', sessionState: 'Stopped' });
 }
 

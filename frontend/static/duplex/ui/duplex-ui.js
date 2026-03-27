@@ -70,7 +70,7 @@ export class MetricsPanel {
         }
 
         // Latency
-        if (data.latencyMs) {
+        if (data.latencyMs !== undefined && data.latencyMs !== null) {
             const el = this._el('latencyDisplay');
             if (el) {
                 if (data.costAllMs !== undefined && data.costAllMs > 0) {
@@ -84,7 +84,7 @@ export class MetricsPanel {
         }
 
         // TTFS
-        if (data.ttfsMs) {
+        if (data.ttfsMs !== undefined && data.ttfsMs !== null) {
             const el = this._el('ttfsDisplay');
             if (el) {
                 el.textContent = `${Math.round(data.ttfsMs)}ms`;
@@ -351,6 +351,7 @@ export function setDefaultPauseBtnState(state) {
         case 'active': btn.textContent = 'Pause'; btn.disabled = false; break;
         case 'pausing': btn.textContent = 'Pausing...'; btn.disabled = true; break;
         case 'paused': btn.textContent = 'Resume'; btn.disabled = false; break;
+        case 'resuming': btn.textContent = 'Resuming...'; btn.disabled = true; break;
     }
 }
 
@@ -377,9 +378,12 @@ export function initHealthCheck(badgeId) {
     async function check() {
         try {
             const resp = await fetch('/status');
+            if (!resp.ok) throw new Error(`status ${resp.status}`);
             const data = await resp.json();
-            statusEl.textContent = `Workers: ${data.idle_workers}/${data.total_workers}`;
-            statusEl.className = 'status-badge' + (data.idle_workers > 0 ? ' online' : '');
+            const idleWorkers = Number.isFinite(Number(data.idle_workers)) ? Number(data.idle_workers) : 0;
+            const totalWorkers = Number.isFinite(Number(data.total_workers)) ? Number(data.total_workers) : 0;
+            statusEl.textContent = totalWorkers > 0 ? `Workers: ${idleWorkers}/${totalWorkers}` : 'Not ready';
+            statusEl.className = 'status-badge' + (idleWorkers > 0 ? ' online' : '');
         } catch {
             statusEl.textContent = 'Offline';
             statusEl.className = 'status-badge';

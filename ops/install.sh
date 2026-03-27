@@ -58,6 +58,12 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [[ "$VENV_DIR" == ~/* ]]; then
+    VENV_DIR="$HOME/${VENV_DIR#~/}"
+elif [[ "$VENV_DIR" != /* ]]; then
+    VENV_DIR="$PROJECT_DIR/$VENV_DIR"
+fi
+
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
     echo "[install] Python executable not found: $PYTHON_BIN" >&2
     echo "[install] Install Python 3.10 first, or pass --python /path/to/python3.10" >&2

@@ -109,6 +109,7 @@ Useful flags:
 
 ```bash
 bash ops/bootstrap.sh --yes --source auto
+bash ops/bootstrap.sh --yes --source local --local-source /data/models/MiniCPM-o-4_5
 bash ops/bootstrap.sh --skip-start
 bash ops/bootstrap.sh --model-dir /data/models/MiniCPM-o-4_5
 bash ops/bootstrap.sh --gpu-list 0
@@ -165,6 +166,8 @@ bash ops/stop_all.sh
 ```
 
 `ops/start_all.sh` is restart-safe: it stops prior PIDs from this workspace before spawning fresh workers and the gateway.
+
+Recording defaults are bounded to 7 days and 20 GB unless you override them during bootstrap.
 
 ## 8. Remote Validation Checklist
 

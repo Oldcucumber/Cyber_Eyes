@@ -37,7 +37,7 @@ export class DuplexSession {
         this.sessionId = '';
         this.chunksSent = 0;
         this.paused = false;
-        this.pauseState = 'active'; // 'active' | 'pausing' | 'paused'
+        this.pauseState = 'active'; // 'active' | 'pausing' | 'paused' | 'resuming'
         this.serverPauseConfirmed = false;
         this.forceListenActive = false;
         this.currentSpeakText = '';
@@ -169,7 +169,12 @@ export class DuplexSession {
                 };
 
                 this.ws.onmessage = (e) => {
-                    const msg = JSON.parse(e.data);
+                    const msg = this._parseMessage(e.data, 'prepare');
+                    if (!msg) {
+                        this._queueReject = null;
+                        reject(new Error('Invalid server message during session preparation'));
+                        return;
+                    }
                     if (msg.type === 'queued') {
                         this.onQueueUpdate({
                             position: msg.position,
@@ -226,7 +231,15 @@ export class DuplexSession {
             // 6. Begin receiving
             this._started = true;
             this.onRunningChange(true);
-            this.ws.onmessage = (e) => this._handleMessage(JSON.parse(e.data));
+            this.ws.onmessage = (e) => {
+                const msg = this._parseMessage(e.data, 'runtime');
+                if (!msg) {
+                    this.onSystemLog('Error: invalid server message');
+                    this.cleanup();
+                    return;
+                }
+                this._handleMessage(msg);
+            };
             this.ws.onclose = () => {
                 this.onSystemLog('Session ended');
                 this.cleanup();
@@ -244,7 +257,7 @@ export class DuplexSession {
      */
     sendChunk(msg) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-        if (this.paused) return;
+        if (this.paused || this.pauseState !== 'active') return;
         if (this.forceListenActive) msg.force_listen = true;
         this.ws.send(JSON.stringify(msg));
         this.chunksSent++;
@@ -262,10 +275,10 @@ export class DuplexSession {
             this.onMetrics({ type: 'state', sessionState: 'Pausing...' });
             this.ws.send(JSON.stringify({ type: 'pause' }));
         } else if (this.pauseState === 'paused') {
-            this.paused = false;
-            this.pauseState = 'active';
-            this.onPauseStateChange('active');
-            this.onMetrics({ type: 'state', sessionState: 'Active' });
+            this.paused = true;
+            this.pauseState = 'resuming';
+            this.onPauseStateChange('resuming');
+            this.onMetrics({ type: 'state', sessionState: 'Resuming...' });
             this.ws.send(JSON.stringify({ type: 'resume' }));
         }
     }
@@ -343,6 +356,15 @@ export class DuplexSession {
         this._queueReject = null;
     }
 
+    _parseMessage(data, phase) {
+        try {
+            return JSON.parse(data);
+        } catch (err) {
+            this.onSystemLog(`Invalid ${phase} message: ${err.message}`);
+            return null;
+        }
+    }
+
     _handleMessage(msg) {
         switch (msg.type) {
             case 'result': this._handleResult(msg); break;
@@ -358,6 +380,7 @@ export class DuplexSession {
                 this.paused = false;
                 this.pauseState = 'active';
                 this.onPauseStateChange('active');
+                this.onMetrics({ type: 'state', sessionState: 'Active' });
                 this.onSystemLog('Session resumed');
                 break;
             case 'interrupted':

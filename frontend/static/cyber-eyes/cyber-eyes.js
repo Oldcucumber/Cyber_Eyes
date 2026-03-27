@@ -460,6 +460,9 @@ function computeSessionState() {
     if (/暂停中|pausing/i.test(pauseText)) {
         return '暂停中';
     }
+    if (/恢复中|resuming/i.test(pauseText)) {
+        return '恢复中';
+    }
     if (lamp?.classList.contains('visible') && lamp?.classList.contains('live')) {
         return '导盲中';
     }
@@ -476,7 +479,7 @@ function buildControlHint(sessionState = computeSessionState()) {
         hint = '正在导盲。需要插话时按住“按住说话”，松开后恢复播报。';
     } else if (sessionState === '准备中') {
         hint = '正在建立导盲会话，请保持镜头朝向前方并稍等。';
-    } else if (sessionState === '已暂停' || sessionState === '暂停中') {
+    } else if (sessionState === '已暂停' || sessionState === '暂停中' || sessionState === '恢复中') {
         hint = '当前已暂停。继续后才会恢复导盲与环境感知。';
     }
 
@@ -711,6 +714,7 @@ function refreshStatus() {
                 '准备中': '正在建立导盲会话',
                 '已暂停': '导盲已暂停',
                 '暂停中': '正在暂停导盲',
+                '恢复中': '正在恢复导盲',
                 '待机': '导盲已停止',
             };
             announcePolite(sessionAnnouncementMap[sessionState] || sessionState);
@@ -723,6 +727,7 @@ function refreshStatus() {
     }
     if (pauseBtn) {
         if (/pausing/i.test(pauseBtn.textContent)) pauseBtn.textContent = '暂停中...';
+        else if (/resuming/i.test(pauseBtn.textContent)) pauseBtn.textContent = '恢复中...';
         else if (/resume/i.test(pauseBtn.textContent)) pauseBtn.textContent = '继续';
         else if (pauseBtn.disabled) pauseBtn.textContent = '暂停';
         else pauseBtn.textContent = '暂停';
@@ -731,7 +736,7 @@ function refreshStatus() {
         forceBtn.textContent = forceBtn.classList.contains('force-listen-active') ? '恢复导盲' : '我在说话';
     }
     if (hdBtn) {
-        hdBtn.textContent = hdBtn.classList.contains('force-listen-active') ? '细节增强已开' : '细节增强';
+        hdBtn.textContent = byId('visionHD')?.checked ? '细节增强已开' : '细节增强';
     }
 
     const fsStart = byId('fsBtnStart');

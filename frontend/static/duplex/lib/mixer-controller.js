@@ -437,6 +437,12 @@ export class MixerController {
                 this.addLog('Preview: no file selected');
                 return;
             }
+
+            let tmpCtx = null;
+            let previewStream = null;
+            let previewCtx = null;
+            let previewFileSrc = null;
+            let previewCaptureNode = null;
             try {
                 btnRec.disabled = true;
                 btnRec.textContent = 'Decoding...';
@@ -445,7 +451,7 @@ export class MixerController {
                 if (!fileChunks || fileChunks.length === 0) {
                     this.addLog('Preview: decoding file audio...');
                     const arrayBuffer = await selectedFile.arrayBuffer();
-                    const tmpCtx = new AudioContext();
+                    tmpCtx = new AudioContext();
                     const decoded = await tmpCtx.decodeAudioData(arrayBuffer.slice(0));
                     const targetFrames = Math.ceil(decoded.duration * this.sampleRate);
                     const offCtx = new OfflineAudioContext(1, targetFrames, this.sampleRate);
@@ -455,15 +461,14 @@ export class MixerController {
                     src.start();
                     const resampled = await offCtx.startRendering();
                     const pcm = resampled.getChannelData(0);
-                    await tmpCtx.close();
 
                     const targetLUFS = parseFloat(document.getElementById('mxFileTarget')?.value) || -33;
                     const srcLUFS = measureLUFS(pcm, this.sampleRate);
                     const measEl = document.getElementById('mxFileMeasured');
-                    if (measEl) measEl.textContent = isFinite(srcLUFS) ? srcLUFS.toFixed(1) : '—';
+                    if (measEl) measEl.textContent = isFinite(srcLUFS) ? srcLUFS.toFixed(1) : '--';
                     const autoGainDb = isFinite(srcLUFS) ? targetLUFS - srcLUFS : 0;
                     const autoEl = document.getElementById('mxFileAuto');
-                    if (autoEl) autoEl.textContent = isFinite(srcLUFS) ? autoGainDb.toFixed(1) : '—';
+                    if (autoEl) autoEl.textContent = isFinite(srcLUFS) ? autoGainDb.toFixed(1) : '--';
                     if (isFinite(srcLUFS)) {
                         const gain = Math.pow(10, autoGainDb / 20);
                         for (let i = 0; i < pcm.length; i++) pcm[i] *= gain;
@@ -476,43 +481,45 @@ export class MixerController {
 
                 this.stopMixerMic();
 
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false } });
-                this._previewCtx = new AudioContext({ sampleRate: this.sampleRate });
-                if (this._previewCtx.state === 'suspended') await this._previewCtx.resume();
-                await this._previewCtx.audioWorklet.addModule('/static/duplex/lib/capture-processor.js');
+                previewStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false } });
+                previewCtx = new AudioContext({ sampleRate: this.sampleRate });
+                if (previewCtx.state === 'suspended') await previewCtx.resume();
+                await previewCtx.audioWorklet.addModule('/static/duplex/lib/capture-processor.js');
 
-                const micSrc = this._previewCtx.createMediaStreamSource(stream);
+                const micSrc = previewCtx.createMediaStreamSource(previewStream);
                 const micTarget = parseFloat(document.getElementById('mxMicTarget')?.value) || -23;
                 const micAutoDb = micTarget - this.micMeasuredLUFS;
                 const micTrimDb = parseInt(document.getElementById('mxMicTrim')?.value) || 0;
-                const micGainNode = this._previewCtx.createGain();
+                const micGainNode = previewCtx.createGain();
                 micGainNode.gain.value = MixerController.dbToLinear(micAutoDb + micTrimDb);
 
                 const fileTrimDb = parseInt(document.getElementById('mxFileTrim')?.value) || 0;
-                const fileGainNode = this._previewCtx.createGain();
+                const fileGainNode = previewCtx.createGain();
                 fileGainNode.gain.value = MixerController.dbToLinear(fileTrimDb);
 
-                const micAnalyser = this._previewCtx.createAnalyser(); micAnalyser.fftSize = 2048;
-                const fileAnalyser = this._previewCtx.createAnalyser(); fileAnalyser.fftSize = 2048;
-                const mixAnalyser = this._previewCtx.createAnalyser(); mixAnalyser.fftSize = 2048;
+                const micAnalyser = previewCtx.createAnalyser(); micAnalyser.fftSize = 2048;
+                const fileAnalyser = previewCtx.createAnalyser(); fileAnalyser.fftSize = 2048;
+                const mixAnalyser = previewCtx.createAnalyser(); mixAnalyser.fftSize = 2048;
 
                 const monPct = parseInt(document.getElementById('mxMonitor')?.value) || 50;
                 const fileAutoGainDb = parseFloat(document.getElementById('mxFileAuto')?.textContent) || 0;
-                const monitorGain = this._previewCtx.createGain();
+                const monitorGain = previewCtx.createGain();
                 const lufsCompensation = fileAutoGainDb < 0 ? Math.pow(10, -fileAutoGainDb / 20) : 1;
                 monitorGain.gain.value = (monPct / 100) * lufsCompensation;
 
                 const totalSamples = fileChunks.reduce((a, c) => a + c.length, 0);
-                const audioBuf = this._previewCtx.createBuffer(1, totalSamples, this.sampleRate);
+                const audioBuf = previewCtx.createBuffer(1, totalSamples, this.sampleRate);
                 const ch = audioBuf.getChannelData(0);
                 let pos = 0;
                 for (const c of fileChunks) { ch.set(c, pos); pos += c.length; }
-                const fileSrc = this._previewCtx.createBufferSource();
+                const fileSrc = previewCtx.createBufferSource();
                 fileSrc.buffer = audioBuf;
+                previewFileSrc = fileSrc;
 
-                const captureNode = new AudioWorkletNode(this._previewCtx, 'capture-processor', {
+                const captureNode = new AudioWorkletNode(previewCtx, 'capture-processor', {
                     processorOptions: { chunkSize: this.sampleRate },
                 });
+                previewCaptureNode = captureNode;
 
                 // Audio graph routing (mirrors real session)
                 micSrc.connect(micGainNode);
@@ -523,15 +530,15 @@ export class MixerController {
                 fileGainNode.connect(captureNode);
                 fileGainNode.connect(fileAnalyser);
                 fileGainNode.connect(monitorGain);
-                monitorGain.connect(this._previewCtx.destination);
+                monitorGain.connect(previewCtx.destination);
 
-                const mixBus = this._previewCtx.createGain();
+                const mixBus = previewCtx.createGain();
                 mixBus.gain.value = 1;
                 micGainNode.connect(mixBus);
                 fileGainNode.connect(mixBus);
                 mixBus.connect(mixAnalyser);
 
-                this._previewCtx._nodes = {
+                previewCtx._nodes = {
                     micGain: micGainNode, fileGain: fileGainNode, monitorGain: monitorGain,
                     monitorEl: null, lufsCompensation,
                     micAnalyser, fileAnalyser, mixAnalyser, connected: true,
@@ -544,9 +551,10 @@ export class MixerController {
                 captureNode.port.postMessage({ command: 'start' });
                 fileSrc.start();
 
-                this._previewCtx._stream = stream;
-                this._previewCtx._fileSrc = fileSrc;
-                this._previewCtx._captureNode = captureNode;
+                previewCtx._stream = previewStream;
+                previewCtx._fileSrc = fileSrc;
+                previewCtx._captureNode = captureNode;
+                this._previewCtx = previewCtx;
                 fileSrc.onended = () => this.stopPreview();
 
                 btnRec.textContent = '● Rec';
@@ -555,9 +563,22 @@ export class MixerController {
                 btnRec.classList.add('recording');
                 this.addLog('Preview: recording started');
             } catch (err) {
+                try { previewCaptureNode?.port.postMessage({ command: 'stop' }); } catch (_) {}
+                try { previewFileSrc?.stop(); } catch (_) {}
+                previewStream?.getTracks().forEach(t => t.stop());
+                if (previewCtx) {
+                    previewCtx._nodes = null;
+                    previewCtx.close().catch(() => {});
+                }
+                this._previewCtx = null;
+                this._previewChunks = [];
                 this.addLog(`Preview error: ${err.message}`);
                 btnRec.disabled = false;
                 btnRec.textContent = '● Rec';
+            } finally {
+                if (tmpCtx) {
+                    try { await tmpCtx.close(); } catch (_) {}
+                }
             }
         });
 

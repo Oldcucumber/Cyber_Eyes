@@ -30,22 +30,31 @@ export function initRefAudio(containerId, callbacks = {}) {
             base64 = null;
             name = '';
             isDefault = false;
-            fetch('/api/default_ref_audio').then(r => r.json()).then(data => {
-                base64 = data.base64;
-                name = data.name;
-                isDefault = true;
-                rap.setAudio(data.base64, data.name, data.duration);
-            }).catch(() => {});
+            loadDefaultRefAudio().catch(() => {});
         },
     });
 
-    // Load default ref audio
-    fetch('/api/default_ref_audio').then(r => r.json()).then(data => {
+    async function loadDefaultRefAudio({ updateHint = false } = {}) {
+        const resp = await fetch('/api/default_ref_audio');
+        if (!resp.ok) {
+            throw new Error(`default ref audio request failed (${resp.status})`);
+        }
+
+        const data = await resp.json();
+        if (!data || !data.base64 || !data.name) {
+            throw new Error('default ref audio payload is incomplete');
+        }
+
         base64 = data.base64;
         name = data.name;
         isDefault = true;
         rap.setAudio(data.base64, data.name, data.duration);
-        callbacks.onTtsHintUpdate?.();
+        if (updateHint) callbacks.onTtsHintUpdate?.();
+        return data;
+    }
+
+    // Load default ref audio
+    loadDefaultRefAudio({ updateHint: true }).then(data => {
         console.log(`Default ref audio loaded: ${data.name} (${data.duration}s)`);
     }).catch(e => {
         console.warn('Failed to load default ref audio:', e);
