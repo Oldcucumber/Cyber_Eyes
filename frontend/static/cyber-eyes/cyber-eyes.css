@@ -110,6 +110,7 @@ summary:focus-visible {
 
 .status-badge,
 .ce-pill-static,
+.ce-pill-info,
 .ce-mini-status {
     display: inline-flex;
     align-items: center;
@@ -123,6 +124,7 @@ summary:focus-visible {
 }
 
 .ce-pill-static::before,
+.ce-pill-info::before,
 .ce-mini-status::before,
 .status-badge::before {
     content: "";
@@ -592,6 +594,11 @@ summary:focus-visible {
 .ce-small-unit {
     font-size: 11px;
     color: var(--ce-muted);
+}
+
+.ce-pill-info::before {
+    background: var(--ce-accent);
+    box-shadow: 0 0 0 4px rgba(119, 210, 255, 0.14);
 }
 
 .ce-backend-pill {

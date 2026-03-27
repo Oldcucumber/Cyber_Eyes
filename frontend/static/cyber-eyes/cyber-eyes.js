@@ -224,14 +224,24 @@ function byId(id) {
 
 function renderBackendTargetMeta(target = getActiveBackendTarget()) {
     const meta = describeBackendTarget(target);
+    const quickPill = byId('ceBackendQuickPill');
     const modeEl = byId('backendTargetMode');
     const browserEl = byId('backendBrowserEndpoint');
     const urlEl = byId('backendTargetUrl');
+    const pathEl = byId('backendAccessPath');
     const descEl = byId('backendTargetDesc');
+    const accessPath = meta.mode === 'direct'
+        ? '浏览器 -> 前端，浏览器 -> 后端'
+        : '浏览器 -> 前端 -> 后端';
 
+    if (quickPill) {
+        quickPill.textContent = `${meta.label} · ${meta.mode === 'direct' ? '远端直连' : '本地代理'}`;
+        quickPill.title = accessPath;
+    }
     if (modeEl) modeEl.textContent = meta.modeLabel;
     if (browserEl) browserEl.textContent = meta.browserEndpoint;
     if (urlEl) urlEl.textContent = meta.upstreamEndpoint;
+    if (pathEl) pathEl.textContent = accessPath;
     if (descEl) descEl.textContent = meta.description;
 }
 

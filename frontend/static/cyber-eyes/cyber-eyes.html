@@ -20,6 +20,7 @@
         </div>
         <div class="ce-header-actions">
             <span class="ce-pill ce-pill-static">HTTPS 已启用</span>
+            <span class="ce-pill ce-pill-info" id="ceBackendQuickPill">本地代理</span>
             <span class="status-badge" id="serviceStatus">连接中...</span>
             <button class="header-reset-btn" id="btnResetSettings" type="button">重置本地设置</button>
         </div>
@@ -281,6 +282,10 @@
                     <div class="cg-row">
                         <span class="cg-label">后端地址</span>
                         <code class="ce-backend-endpoint" id="backendTargetUrl">等待配置...</code>
+                    </div>
+                    <div class="cg-row">
+                        <span class="cg-label">访问路径</span>
+                        <code class="ce-backend-endpoint" id="backendAccessPath">浏览器 -> 前端 -> 后端</code>
                     </div>
                     <p class="ce-backend-note" id="backendTargetDesc">前端将根据这里的目标决定是走本地代理，还是让浏览器直接访问允许的远端后端。</p>
                 </div>
