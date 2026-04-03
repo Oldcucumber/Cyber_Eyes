@@ -199,6 +199,11 @@ import {
     listBackendTargets,
     setActiveBackendTarget,
 } from '../lib/backend-targets.js';
+import {
+    getPageMode,
+    isDemoMode,
+    isDeveloperMode,
+} from '../lib/page-mode.js';
 
 const state = {
     mission: 'safe_walk',
@@ -220,11 +225,6 @@ let lastPreparedAssistContextKey = '';
 
 function byId(id) {
     return document.getElementById(id);
-}
-
-function isDeveloperModePage() {
-    const path = window.location.pathname.replace(/index\.html$/i, '').replace(/\/+$/, '');
-    return path.endsWith('/dev');
 }
 
 function renderBackendTargetMeta(target = getActiveBackendTarget()) {
@@ -331,7 +331,9 @@ function localizeServiceStatus(text) {
     const value = (text || '').trim();
     const lower = value.toLowerCase();
     if (!value) return '连接中...';
+    if (lower.includes('demo') || value.includes('演示')) return '演示模式';
     if (lower.includes('healthy') || lower.includes('ready') || value.includes('在线')) return '服务在线';
+    if (lower.includes('offline')) return '离线';
     if (lower.includes('connect') || value.includes('连接')) return '连接中...';
     if (lower.includes('error') || lower.includes('fail') || value.includes('异常')) return '连接异常';
     return value;
@@ -543,10 +545,16 @@ function computeSessionState() {
 function buildControlHint(sessionState = computeSessionState()) {
     let hint = '点开始后即可使用。需要插话时按住“按住说话”。';
 
+    if (isDemoMode()) {
+        hint = '点开始后，可直接点下方话术按钮演示常见插话。';
+    }
+
     if (sessionState === '导盲中') {
-        hint = '正在导盲。需要说话时按住“按住说话”。';
+        hint = isDemoMode()
+            ? '演示进行中。点话术按钮可模拟用户提问。'
+            : '正在导盲。需要说话时按住“按住说话”。';
     } else if (sessionState === '准备中') {
-        hint = '正在连接，请稍等。';
+        hint = isDemoMode() ? '正在准备演示，请稍等。' : '正在连接，请稍等。';
     } else if (sessionState === '已暂停' || sessionState === '暂停中' || sessionState === '恢复中') {
         hint = '已暂停。继续后恢复。';
     }
@@ -624,9 +632,9 @@ function buildSessionAlert(sessionState) {
         default:
             return {
                 level: 'idle',
-                prefix: '当前状态',
-                title: '等待开始',
-                body: '开始后，这里会显示当前指令。',
+                prefix: isDemoMode() ? '离线演示' : '当前状态',
+                title: isDemoMode() ? '等待演示开始' : '等待开始',
+                body: isDemoMode() ? '开始后，这里会演示常见语音触发。' : '开始后，这里会显示当前指令。',
             };
     }
 }
@@ -1035,8 +1043,16 @@ function installAccessibilityLabels() {
 }
 
 function init() {
-    document.body.classList.toggle('ce-dev-mode', isDeveloperModePage());
-    document.title = isDeveloperModePage() ? 'Cyber Eyes 开发者模式' : 'Cyber Eyes 导盲模式';
+    const pageMode = getPageMode();
+    document.body.classList.toggle('ce-dev-mode', isDeveloperMode());
+    document.body.classList.toggle('ce-demo-mode', isDemoMode());
+    if (pageMode === 'dev') {
+        document.title = 'Cyber Eyes 开发者模式';
+    } else if (pageMode === 'demo') {
+        document.title = 'Cyber Eyes 演示模式';
+    } else {
+        document.title = 'Cyber Eyes 导盲模式';
+    }
     ensureStateConsistency();
     syncAllSelections();
     registerPrepareHook();
@@ -1050,7 +1066,11 @@ function init() {
     refreshStatus();
     refreshConversationSummary();
     syncHoldButton();
-    byId('modeBadge').textContent = 'Cyber Eyes Live';
+    byId('modeBadge').textContent = pageMode === 'demo' ? 'Cyber Eyes Demo' : 'Cyber Eyes Live';
+    if (isDemoMode()) {
+        const demoState = byId('ceDemoState');
+        if (demoState) demoState.textContent = '无需后端';
+    }
 }
 
 if (document.readyState === 'loading') {

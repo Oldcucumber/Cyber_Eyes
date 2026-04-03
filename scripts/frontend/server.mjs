@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import httpProxy from 'http-proxy';
 
-import { loadFrontendConfig, readCyberEyesHtml, toFrontendConfigScript } from './config-utils.mjs';
+import { loadFrontendConfig, renderCyberEyesHtml, toFrontendConfigScript } from './config-utils.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -115,21 +115,28 @@ async function resolveRootHtml() {
   if (useDist) {
     return fs.readFile(path.join(projectRoot, 'dist', 'index.html'), 'utf8');
   }
-  return readCyberEyesHtml(projectRoot);
+  return renderCyberEyesHtml(projectRoot, { mode: 'user', assetPrefix: '.' });
 }
 
 async function resolveCyberEyesHtml() {
   if (useDist) {
     return fs.readFile(path.join(projectRoot, 'dist', 'cyber-eyes', 'index.html'), 'utf8');
   }
-  return readCyberEyesHtml(projectRoot);
+  return renderCyberEyesHtml(projectRoot, { mode: 'user', assetPrefix: '.' });
 }
 
 async function resolveDevHtml() {
   if (useDist) {
     return fs.readFile(path.join(projectRoot, 'dist', 'dev', 'index.html'), 'utf8');
   }
-  return readCyberEyesHtml(projectRoot);
+  return renderCyberEyesHtml(projectRoot, { mode: 'dev', assetPrefix: '.' });
+}
+
+async function resolveDemoHtml() {
+  if (useDist) {
+    return fs.readFile(path.join(projectRoot, 'dist', 'demo', 'index.html'), 'utf8');
+  }
+  return renderCyberEyesHtml(projectRoot, { mode: 'demo', assetPrefix: '.' });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -168,6 +175,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (!useDist && url.pathname === '/demo/') {
+    res.writeHead(302, { Location: '/demo' });
+    res.end();
+    return;
+  }
+
   if (url.pathname === '/') {
     const html = await resolveRootHtml();
     res.writeHead(200, {
@@ -190,6 +203,16 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/dev' || url.pathname === '/dev/') {
     const html = await resolveDevHtml();
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache',
+    });
+    res.end(html);
+    return;
+  }
+
+  if (url.pathname === '/demo' || url.pathname === '/demo/') {
+    const html = await resolveDemoHtml();
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-cache',

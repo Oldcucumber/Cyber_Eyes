@@ -15,11 +15,25 @@
  */
 import { buildBackendHttpUrl } from '../../lib/backend-targets.js';
 
+async function fetchWithTimeout(url, timeoutMs = 1400) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { signal: controller.signal });
+    } finally {
+        window.clearTimeout(timer);
+    }
+}
+
 export function initRefAudio(containerId, callbacks = {}) {
     const RefAudioPlayer = window.RefAudioPlayer;
     let base64 = null;
     let name = '';
     let isDefault = false;
+    const autoLoadDefault = callbacks.autoLoadDefault !== false;
+    const loadDefaultTimeoutMs = Number.isFinite(Number(callbacks.loadDefaultTimeoutMs))
+        ? Number(callbacks.loadDefaultTimeoutMs)
+        : 1400;
 
     const rap = new RefAudioPlayer(document.getElementById(containerId), {
         theme: 'light',
@@ -37,7 +51,7 @@ export function initRefAudio(containerId, callbacks = {}) {
     });
 
     async function loadDefaultRefAudio({ updateHint = false } = {}) {
-        const resp = await fetch(buildBackendHttpUrl('/api/default_ref_audio'));
+        const resp = await fetchWithTimeout(buildBackendHttpUrl('/api/default_ref_audio'), loadDefaultTimeoutMs);
         if (!resp.ok) {
             throw new Error(`default ref audio request failed (${resp.status})`);
         }
@@ -55,18 +69,23 @@ export function initRefAudio(containerId, callbacks = {}) {
         return data;
     }
 
-    // Load default ref audio
-    loadDefaultRefAudio({ updateHint: true }).then(data => {
-        console.log(`Default ref audio loaded: ${data.name} (${data.duration}s)`);
-    }).catch(e => {
-        console.warn('Failed to load default ref audio:', e);
-    });
+    const ready = autoLoadDefault
+        ? loadDefaultRefAudio({ updateHint: true }).then(data => {
+            console.log(`Default ref audio loaded: ${data.name} (${data.duration}s)`);
+            return data;
+        }).catch(e => {
+            console.warn('Failed to load default ref audio:', e);
+            return null;
+        })
+        : Promise.resolve(null);
 
     return {
         getBase64: () => base64,
         getName: () => name,
         isDefault: () => isDefault,
         rap,
+        ready,
+        loadDefault: loadDefaultRefAudio,
         setAudio(b64, n, dur) {
             base64 = b64;
             name = n || '';

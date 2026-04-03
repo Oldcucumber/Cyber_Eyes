@@ -6,7 +6,7 @@ import {
   copyDir,
   ensureCleanDir,
   loadFrontendConfig,
-  readCyberEyesHtml,
+  renderCyberEyesHtml,
   toFrontendConfigScript,
 } from './config-utils.mjs';
 
@@ -25,26 +25,32 @@ const { config, configPath } = await loadFrontendConfig(projectRoot, explicitCon
 await ensureCleanDir(distDir);
 await copyDir(staticSrcDir, staticDstDir);
 
-const html = await readCyberEyesHtml(projectRoot);
-await fs.writeFile(path.join(distDir, 'index.html'), html, 'utf8');
+const userHtml = await renderCyberEyesHtml(projectRoot, { mode: 'user', assetPrefix: '.' });
+const nestedUserHtml = await renderCyberEyesHtml(projectRoot, { mode: 'user', assetPrefix: '..' });
+const devHtml = await renderCyberEyesHtml(projectRoot, { mode: 'dev', assetPrefix: '..' });
+const demoHtml = await renderCyberEyesHtml(projectRoot, { mode: 'demo', assetPrefix: '..' });
+
+await fs.writeFile(path.join(distDir, 'index.html'), userHtml, 'utf8');
 await fs.mkdir(path.join(distDir, 'cyber-eyes'), { recursive: true });
 await fs.writeFile(
   path.join(distDir, 'cyber-eyes', 'index.html'),
-  html
-    .replaceAll('./frontend-config.js', '../frontend-config.js')
-    .replaceAll('./static/', '../static/'),
+  nestedUserHtml,
   'utf8',
 );
 await fs.mkdir(path.join(distDir, 'dev'), { recursive: true });
 await fs.writeFile(
   path.join(distDir, 'dev', 'index.html'),
-  html
-    .replaceAll('./frontend-config.js', '../frontend-config.js')
-    .replaceAll('./static/', '../static/'),
+  devHtml,
+  'utf8',
+);
+await fs.mkdir(path.join(distDir, 'demo'), { recursive: true });
+await fs.writeFile(
+  path.join(distDir, 'demo', 'index.html'),
+  demoHtml,
   'utf8',
 );
 await fs.writeFile(path.join(distDir, 'frontend-config.js'), toFrontendConfigScript(config), 'utf8');
-await fs.writeFile(path.join(distDir, '404.html'), html, 'utf8');
+await fs.writeFile(path.join(distDir, '404.html'), userHtml, 'utf8');
 await fs.writeFile(path.join(distDir, '.nojekyll'), '', 'utf8');
 
 console.log(`[frontend build] config: ${configPath}`);

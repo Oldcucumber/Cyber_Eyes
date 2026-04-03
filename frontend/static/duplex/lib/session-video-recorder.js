@@ -22,6 +22,8 @@
 
 import { resampleAudio } from './duplex-utils.js';
 
+const STEREO_RECORDER_PROCESSOR_URL = new URL('./stereo-recorder-processor.js', import.meta.url).toString();
+
 export class SessionVideoRecorder {
     /**
      * @param {HTMLVideoElement} videoEl - The video element to capture
@@ -94,7 +96,7 @@ export class SessionVideoRecorder {
         this._recCtx = new AudioContext({ sampleRate: this._inputSR });
         if (this._recCtx.state === 'suspended') await this._recCtx.resume();
 
-        await this._recCtx.audioWorklet.addModule('/static/duplex/lib/stereo-recorder-processor.js');
+        await this._recCtx.audioWorklet.addModule(STEREO_RECORDER_PROCESSOR_URL);
         this._stereoNode = new AudioWorkletNode(this._recCtx, 'stereo-recorder-processor', {
             numberOfInputs: 2,    // input 0: left channel, input 1: right channel
             outputChannelCount: [2],

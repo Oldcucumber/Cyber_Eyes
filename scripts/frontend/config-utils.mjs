@@ -112,6 +112,34 @@ export function toFrontendConfigScript(config) {
   return `window.__CYBER_EYES_FRONTEND_CONFIG__ = ${JSON.stringify(config, null, 2)};\n`;
 }
 
+const PAGE_VARIANTS = {
+  user: {
+    title: 'Cyber Eyes 导盲模式',
+    heading: '实时导盲',
+    subtitle: '短句播报，可随时打断。',
+    modeClass: 'ce-page-user',
+    runtimeModule: 'static/runtime/duplex-runtime.js',
+  },
+  dev: {
+    title: 'Cyber Eyes 开发者模式',
+    heading: '开发者模式',
+    subtitle: '完整控制台，用于设备、后端和提示词调试。',
+    modeClass: 'ce-page-dev ce-dev-mode',
+    runtimeModule: 'static/runtime/duplex-runtime.js',
+  },
+  demo: {
+    title: 'Cyber Eyes 演示模式',
+    heading: '离线演示',
+    subtitle: '不连后端，直接体验常见语音触发。',
+    modeClass: 'ce-page-demo',
+    runtimeModule: 'static/runtime/demo-runtime.js',
+  },
+};
+
+function getPageVariant(mode = 'user') {
+  return PAGE_VARIANTS[mode] || PAGE_VARIANTS.user;
+}
+
 export async function ensureCleanDir(dirPath) {
   await fs.rm(dirPath, { recursive: true, force: true });
   await fs.mkdir(dirPath, { recursive: true });
@@ -134,4 +162,19 @@ export async function copyDir(srcDir, dstDir) {
 export async function readCyberEyesHtml(projectRoot) {
   const htmlPath = path.join(projectRoot, 'frontend', 'static', 'cyber-eyes', 'cyber-eyes.html');
   return fs.readFile(htmlPath, 'utf8');
+}
+
+export async function renderCyberEyesHtml(projectRoot, { mode = 'user', assetPrefix = '.' } = {}) {
+  const template = await readCyberEyesHtml(projectRoot);
+  const variant = getPageVariant(mode);
+  const prefix = assetPrefix || '.';
+
+  return template
+    .replaceAll('__CYBER_EYES_PAGE_TITLE__', variant.title)
+    .replaceAll('__CYBER_EYES_PAGE_HEADING__', variant.heading)
+    .replaceAll('__CYBER_EYES_PAGE_SUBTITLE__', variant.subtitle)
+    .replaceAll('__CYBER_EYES_MODE_CLASS__', variant.modeClass)
+    .replaceAll('__CYBER_EYES_PAGE_MODE_VALUE__', mode)
+    .replaceAll('__CYBER_EYES_ASSET_PREFIX__', prefix)
+    .replaceAll('__CYBER_EYES_RUNTIME_MODULE__', `${prefix}/${variant.runtimeModule}`);
 }

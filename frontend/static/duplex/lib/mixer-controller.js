@@ -21,6 +21,8 @@
 
 import { measureLUFS } from './lufs.js';
 
+const CAPTURE_PROCESSOR_URL = new URL('./capture-processor.js', import.meta.url).toString();
+
 // ============================================================================
 // Pure utility: WAV encoder (mono, 16-bit)
 // ============================================================================
@@ -484,7 +486,7 @@ export class MixerController {
                 previewStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false } });
                 previewCtx = new AudioContext({ sampleRate: this.sampleRate });
                 if (previewCtx.state === 'suspended') await previewCtx.resume();
-                await previewCtx.audioWorklet.addModule('/static/duplex/lib/capture-processor.js');
+                await previewCtx.audioWorklet.addModule(CAPTURE_PROCESSOR_URL);
 
                 const micSrc = previewCtx.createMediaStreamSource(previewStream);
                 const micTarget = parseFloat(document.getElementById('mxMicTarget')?.value) || -23;

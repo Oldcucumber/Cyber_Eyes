@@ -15,7 +15,7 @@ from typing import Any, Optional
 import uvicorn
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import get_config
@@ -30,8 +30,32 @@ logger = logging.getLogger('gateway')
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 STATIC_DIR = os.path.join(PROJECT_ROOT, 'frontend', 'static')
-CYBER_EYES_PAGE = os.path.join(STATIC_DIR, 'cyber-eyes', 'cyber-eyes.html')
+CYBER_EYES_TEMPLATE = os.path.join(STATIC_DIR, 'cyber-eyes', 'cyber-eyes.html')
 SESSION_ID_RE = re.compile(r'^[a-zA-Z0-9_-]+$')
+
+PAGE_VARIANTS: dict[str, dict[str, str]] = {
+    'user': {
+        'title': 'Cyber Eyes 导盲模式',
+        'heading': '实时导盲',
+        'subtitle': '短句播报，可随时打断。',
+        'mode_class': 'ce-page-user',
+        'runtime_module': './static/runtime/duplex-runtime.js',
+    },
+    'dev': {
+        'title': 'Cyber Eyes 开发者模式',
+        'heading': '开发者模式',
+        'subtitle': '完整控制台，用于设备、后端和提示词调试。',
+        'mode_class': 'ce-page-dev ce-dev-mode',
+        'runtime_module': './static/runtime/duplex-runtime.js',
+    },
+    'demo': {
+        'title': 'Cyber Eyes 演示模式',
+        'heading': '离线演示',
+        'subtitle': '不连后端，直接体验常见语音触发。',
+        'mode_class': 'ce-page-demo',
+        'runtime_module': './static/runtime/demo-runtime.js',
+    },
+}
 
 worker_pool: Optional[WorkerPool] = None
 gateway_config: dict[str, Any] = {}
@@ -46,6 +70,26 @@ def _sanitize_session_id(session_id: str) -> str:
     if SESSION_ID_RE.fullmatch(session_id):
         return session_id
     return re.sub(r'[^a-zA-Z0-9_-]', '_', session_id)
+
+
+def _render_frontend_page(mode: str = 'user') -> str:
+    variant = PAGE_VARIANTS.get(mode, PAGE_VARIANTS['user'])
+    if not os.path.isfile(CYBER_EYES_TEMPLATE):
+        return '<h1>Cyber Eyes</h1><p>Frontend page not found.</p>'
+
+    with open(CYBER_EYES_TEMPLATE, 'r', encoding='utf-8') as f:
+        template = f.read()
+
+    return (
+        template
+        .replace('__CYBER_EYES_PAGE_TITLE__', variant['title'])
+        .replace('__CYBER_EYES_PAGE_HEADING__', variant['heading'])
+        .replace('__CYBER_EYES_PAGE_SUBTITLE__', variant['subtitle'])
+        .replace('__CYBER_EYES_MODE_CLASS__', variant['mode_class'])
+        .replace('__CYBER_EYES_PAGE_MODE_VALUE__', mode)
+        .replace('__CYBER_EYES_ASSET_PREFIX__', '.')
+        .replace('__CYBER_EYES_RUNTIME_MODULE__', variant['runtime_module'])
+    )
 
 
 @asynccontextmanager
@@ -207,10 +251,9 @@ async def index() -> RedirectResponse:
 
 
 @app.get('/cyber-eyes', response_class=HTMLResponse)
-async def cyber_eyes() -> HTMLResponse | FileResponse:
-    if os.path.isfile(CYBER_EYES_PAGE):
-        return FileResponse(CYBER_EYES_PAGE)
-    return HTMLResponse('<h1>Cyber Eyes</h1><p>Frontend page not found.</p>', status_code=500)
+async def cyber_eyes() -> HTMLResponse:
+    status_code = 200 if os.path.isfile(CYBER_EYES_TEMPLATE) else 500
+    return HTMLResponse(_render_frontend_page('user'), status_code=status_code)
 
 
 @app.get('/cyber-eyes/', response_class=HTMLResponse)
@@ -219,15 +262,25 @@ async def cyber_eyes_slash() -> RedirectResponse:
 
 
 @app.get('/dev', response_class=HTMLResponse)
-async def dev_page() -> HTMLResponse | FileResponse:
-    if os.path.isfile(CYBER_EYES_PAGE):
-        return FileResponse(CYBER_EYES_PAGE)
-    return HTMLResponse('<h1>Cyber Eyes Dev</h1><p>Frontend page not found.</p>', status_code=500)
+async def dev_page() -> HTMLResponse:
+    status_code = 200 if os.path.isfile(CYBER_EYES_TEMPLATE) else 500
+    return HTMLResponse(_render_frontend_page('dev'), status_code=status_code)
 
 
 @app.get('/dev/', response_class=HTMLResponse)
 async def dev_page_slash() -> RedirectResponse:
     return RedirectResponse(url='/dev', status_code=302)
+
+
+@app.get('/demo', response_class=HTMLResponse)
+async def demo_page() -> HTMLResponse:
+    status_code = 200 if os.path.isfile(CYBER_EYES_TEMPLATE) else 500
+    return HTMLResponse(_render_frontend_page('demo'), status_code=status_code)
+
+
+@app.get('/demo/', response_class=HTMLResponse)
+async def demo_page_slash() -> RedirectResponse:
+    return RedirectResponse(url='/demo', status_code=302)
 
 
 async def _safe_close_client(ws: WebSocket, code: int = 1000, reason: str = '') -> None:

@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cyber Eyes 导盲模式</title>
-    <link rel="stylesheet" href="./static/duplex/duplex-shared.css">
-    <link rel="stylesheet" href="./static/runtime/duplex-runtime.css">
-    <link rel="stylesheet" href="./static/cyber-eyes/cyber-eyes.css">
+    <title>__CYBER_EYES_PAGE_TITLE__</title>
+    <link rel="stylesheet" href="__CYBER_EYES_ASSET_PREFIX__/static/duplex/duplex-shared.css">
+    <link rel="stylesheet" href="__CYBER_EYES_ASSET_PREFIX__/static/runtime/duplex-runtime.css">
+    <link rel="stylesheet" href="__CYBER_EYES_ASSET_PREFIX__/static/cyber-eyes/cyber-eyes.css">
 </head>
-<body class="cyber-eyes-app">
+<body class="cyber-eyes-app __CYBER_EYES_MODE_CLASS__" data-ce-page-mode="__CYBER_EYES_PAGE_MODE_VALUE__">
     <div class="ce-sr-only" id="ceLivePolite" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="ce-sr-only" id="ceLiveAlert" role="alert" aria-live="assertive" aria-atomic="true"></div>
 
     <header class="ce-header">
         <div>
             <p class="ce-kicker">Cyber Eyes</p>
-            <h1>实时导盲</h1>
-            <p class="ce-subtitle">短句播报，可随时打断。</p>
+            <h1>__CYBER_EYES_PAGE_HEADING__</h1>
+            <p class="ce-subtitle">__CYBER_EYES_PAGE_SUBTITLE__</p>
         </div>
         <div class="ce-header-actions">
             <span class="ce-pill ce-pill-static">HTTPS 已启用</span>
@@ -236,6 +236,23 @@
                 </div>
             </section>
 
+            <section class="ce-card ce-demo-card" id="ceDemoCard" aria-labelledby="ceDemoHeading">
+                <div class="ce-card-head">
+                    <div>
+                        <p class="ce-label">离线演示</p>
+                        <h2 id="ceDemoHeading">常见语音触发</h2>
+                    </div>
+                    <div class="ce-mini-status" id="ceDemoState">无需后端</div>
+                </div>
+                <p class="ce-demo-note">点“开始”后，可直接点下面的话术按钮，演示盲人常见插话和系统短句回应。</p>
+                <div class="ce-demo-grid" role="group" aria-label="演示话术">
+                    <button class="ce-demo-trigger" type="button" data-demo-intent="what_ahead">前面有什么</button>
+                    <button class="ce-demo-trigger" type="button" data-demo-intent="find_elevator">带我找电梯</button>
+                    <button class="ce-demo-trigger" type="button" data-demo-intent="read_sign">读一下门牌</button>
+                    <button class="ce-demo-trigger" type="button" data-demo-intent="cross_now">现在能过吗</button>
+                </div>
+            </section>
+
             <section class="ce-card ce-log-card">
                 <div class="ce-card-head">
                     <div>
@@ -387,10 +404,13 @@
         <div id="mixerPanel"></div>
     </div>
 
-    <script src="./frontend-config.js"></script>
-    <script src="./static/ref-audio-player.js"></script>
-    <script type="module" src="./static/runtime/duplex-runtime.js"></script>
-    <script type="module" src="./static/cyber-eyes/cyber-eyes.js"></script>
+    <script>
+        window.__CYBER_EYES_PAGE_MODE__ = '__CYBER_EYES_PAGE_MODE_VALUE__';
+    </script>
+    <script src="__CYBER_EYES_ASSET_PREFIX__/frontend-config.js"></script>
+    <script src="__CYBER_EYES_ASSET_PREFIX__/static/ref-audio-player.js"></script>
+    <script type="module" src="__CYBER_EYES_RUNTIME_MODULE__"></script>
+    <script type="module" src="__CYBER_EYES_ASSET_PREFIX__/static/cyber-eyes/cyber-eyes.js"></script>
 </body>
 </html>
 

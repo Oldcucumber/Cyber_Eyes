@@ -29,6 +29,7 @@ import {
 import { startDingDongLoop, playAlarmBell, playSessionChime } from '../duplex/lib/queue-chimes.js';
 import { createTtsRefController } from '../duplex/ui/tts-ref-controller.js';
 import { initRefAudio } from '../duplex/ui/ref-audio-init.js';
+import { isDeveloperMode } from '../lib/page-mode.js';
 
 // ============================================================================
 // Constants & State
@@ -36,11 +37,13 @@ import { initRefAudio } from '../duplex/ui/ref-audio-init.js';
 const SAMPLE_RATE_IN = 16000;
 const SAMPLE_RATE_OUT = 24000;
 const CHUNK_MS = 1000;
+const CAPTURE_PROCESSOR_URL = new URL('../duplex/lib/capture-processor.js', import.meta.url).toString();
 // 涓嶅湪鍓嶇鍋?resize 鈥?鐩存帴鍙戞憚鍍忓ご/瑙嗛鍘熷鍒嗚鲸鐜囷紝鍚庣缁熶竴澶勭悊锛坰cale_resolution=448锛?
 
 let currentMode = 'live';
 let session = null;
 let media = null;
+const shouldEagerBootstrap = isDeveloperMode();
 
 let selectedFile = null;
 let cameraPreview = null;
@@ -50,6 +53,8 @@ let sessionRecorder = null;
 let lastRecordingBlob = null;
 /** @type {RecordingSettings|null} */
 let recordingSettings = null;
+let deviceSelectorReadyPromise = null;
+let refAudioReadyPromise = null;
 
 // 鎺掗槦鍊掕鏃讹紙浣跨敤鍏变韩 CountdownTimer 妯″潡锛?
 import { CountdownTimer } from '../lib/countdown-timer.js';
@@ -131,6 +136,26 @@ function _omniStopWaveform() {
     if (ph) ph.style.display = '';
 }
 
+function createEmptyRefAudioState() {
+    return {
+        getBase64: () => null,
+        getName: () => '',
+        isDefault: () => false,
+        setAudio: () => {},
+        ready: Promise.resolve(null),
+        loadDefault: async () => null,
+    };
+}
+
+function createNoopTtsRefController() {
+    return {
+        init() {},
+        updateHint() {},
+        onModeChange() {},
+        getBase64() { return null; },
+    };
+}
+
 // ============================================================================
 // Init: Status panel + health check + defaults + settings persistence
 // ============================================================================
@@ -173,9 +198,13 @@ const settingsPersistence = new SettingsPersistence('omni_settings', [
 ]);
 
 // Priority: HTML defaults 鈫?server defaults 鈫?localStorage 鈫?preset (highest)
-loadFrontendDefaults().then(() => {
+if (shouldEagerBootstrap) {
+    loadFrontendDefaults().then(() => {
+        settingsPersistence.restore();
+    });
+} else {
     settingsPersistence.restore();
-});
+}
 window._settingsPersistence = settingsPersistence;
 const omniDeviceSelector = new AudioDeviceSelector({
     micSelectEl: document.getElementById('omniMicDevice'),
@@ -188,7 +217,22 @@ const omniDeviceSelector = new AudioDeviceSelector({
         }
     },
 });
-omniDeviceSelector.init();
+
+async function ensureDeviceSelectorReady() {
+    if (!deviceSelectorReadyPromise) {
+        deviceSelectorReadyPromise = omniDeviceSelector.init().catch((error) => {
+            deviceSelectorReadyPromise = null;
+            throw error;
+        });
+    }
+    return deviceSelectorReadyPromise;
+}
+
+if (shouldEagerBootstrap) {
+    ensureDeviceSelectorReady().catch((error) => {
+        console.warn('[omni] device selector init failed:', error?.message || error);
+    });
+}
 
 document.getElementById('btnResetSettings')?.addEventListener('click', () => {
     if (confirm('Reset all settings to defaults?')) {
@@ -201,11 +245,31 @@ document.getElementById('btnResetSettings')?.addEventListener('click', () => {
 // ============================================================================
 // Ref Audio Management (init before preset so preset can update it)
 // ============================================================================
-const omniTtsRef = createTtsRefController('omni', () => refAudio.getBase64());
-const refAudio = initRefAudio('omniRefAudioPlayer', {
-    onTtsHintUpdate: () => omniTtsRef.updateHint(),
-});
-omniTtsRef.init();
+let refAudio = createEmptyRefAudioState();
+let omniTtsRef = createNoopTtsRefController();
+
+async function ensureReferenceAudioReady({ waitForDefault = false } = {}) {
+    if (!refAudioReadyPromise) {
+        omniTtsRef = createTtsRefController('omni', () => refAudio.getBase64());
+        refAudio = initRefAudio('omniRefAudioPlayer', {
+            autoLoadDefault: true,
+            loadDefaultTimeoutMs: 1400,
+            onTtsHintUpdate: () => omniTtsRef.updateHint(),
+        });
+        omniTtsRef.init();
+        refAudioReadyPromise = (refAudio.ready || Promise.resolve(null)).catch(() => null);
+    }
+    if (waitForDefault) {
+        await refAudioReadyPromise;
+    }
+    return { refAudio, omniTtsRef };
+}
+
+if (shouldEagerBootstrap) {
+    ensureReferenceAudioReady({ waitForDefault: true }).catch((error) => {
+        console.warn('[omni] ref audio init failed:', error?.message || error);
+    });
+}
 
 // ============================================================================
 // MediaProvider Classes (Omni-specific)
@@ -295,7 +359,7 @@ class LiveMediaProvider extends MediaProvider {
         });
         this._audioCtx = new AudioContext({ sampleRate: SAMPLE_RATE_IN });
         if (this._audioCtx.state === 'suspended') await this._audioCtx.resume();
-        await this._audioCtx.audioWorklet.addModule('/static/duplex/lib/capture-processor.js');
+        await this._audioCtx.audioWorklet.addModule(CAPTURE_PROCESSOR_URL);
         this._connectAudioPipeline();
         this.running = true;
         this._previewing = false;
@@ -588,7 +652,7 @@ class FileMediaProvider extends MediaProvider {
         this._micCtx = new AudioContext({ sampleRate: SAMPLE_RATE_IN });
         if (this._micCtx.state === 'suspended') await this._micCtx.resume();
 
-        await this._micCtx.audioWorklet.addModule('/static/duplex/lib/capture-processor.js');
+        await this._micCtx.audioWorklet.addModule(CAPTURE_PROCESSOR_URL);
 
         this._micSource = this._micCtx.createMediaStreamSource(this._micStream);
 
@@ -1310,7 +1374,7 @@ function setMode(mode) {
     document.getElementById('fileChooser').classList.toggle('visible', isFile);
     document.getElementById('fileOptions').classList.toggle('visible', isFile);
     document.getElementById('modeBadge').textContent = isFile ? 'File' : 'Live';
-    if (!isFile) { startCameraPreview(); }
+    if (!isFile) { maybeStartCameraPreview(); }
     else {
         if (cameraPreview) { cameraPreview.stopPreview(); cameraPreview = null; }
         // Ensure video element is hidden even if camera was still initializing
@@ -1401,6 +1465,13 @@ async function startSession() {
     if (session) return;
     if (currentMode === 'file' && !selectedFile) { alert('Please select a video file first.'); return; }
 
+    const fileAudioMode = document.querySelector('input[name="fileAudioMode"]:checked')?.value || 'video';
+    const needsMicPermission = currentMode === 'live' || fileAudioMode !== 'video';
+    if (needsMicPermission) {
+        await ensureDeviceSelectorReady();
+    }
+    await ensureReferenceAudioReady({ waitForDefault: true });
+
     clearConversation();
     metricsPanel.update({ type: 'state', sessionState: 'Starting...' });
     setStatusLamp('preparing');
@@ -1416,7 +1487,7 @@ async function startSession() {
         else { media = new LiveMediaProvider(); }
     } else {
         if (cameraPreview) { cameraPreview.stopPreview(); cameraPreview = null; }
-        const audioMode = document.querySelector('input[name="fileAudioMode"]:checked')?.value || 'video';
+        const audioMode = fileAudioMode;
         const _f = (id, def) => { const v = parseFloat(document.getElementById(id).value); return Number.isFinite(v) ? v : def; };
         const _i = (id, def) => { const v = parseInt(document.getElementById(id).value, 10); return Number.isFinite(v) ? v : def; };
         media = new FileMediaProvider(selectedFile, {
@@ -1530,7 +1601,7 @@ async function startSession() {
         }
         setStatusLamp('stopped');
         document.getElementById('videoOverlay').style.display = 'none';
-        if (currentMode === 'live') { startCameraPreview(); }
+        if (currentMode === 'live') { maybeStartCameraPreview(); }
         else { updateFullscreenBtnVisibility(false); document.getElementById('videoPlaceholder').style.display = 'flex'; document.getElementById('videoEl').style.display = 'none'; }
     };
     session.onRunningChange = (running) => setButtonStates(running);
@@ -1672,7 +1743,7 @@ async function startSession() {
         document.getElementById('videoPlaceholder').style.display = 'flex';
         document.getElementById('videoOverlay').style.display = 'none';
         document.getElementById('videoEl').style.display = 'none';
-        if (currentMode === 'live') startCameraPreview();
+        if (currentMode === 'live') maybeStartCameraPreview();
     }
 }
 
@@ -1691,6 +1762,11 @@ function toggleForceListen() { if (session) session.toggleForceListen(); }
 // ============================================================================
 // Camera Preview
 // ============================================================================
+function maybeStartCameraPreview() {
+    if (!shouldEagerBootstrap) return;
+    if (currentMode === 'live') startCameraPreview();
+}
+
 async function startCameraPreview() {
     if (session) return;
     if (cameraPreview && cameraPreview._previewing) return;
@@ -1706,7 +1782,7 @@ async function startCameraPreview() {
     }
 }
 
-if (currentMode === 'live') startCameraPreview();
+maybeStartCameraPreview();
 
 // ============================================================================
 // Wire up inline onclick/onchange 鈫?addEventListener
@@ -1778,7 +1854,10 @@ document.getElementById('btnHD')?.addEventListener('click', toggleHD);
 
 // TTS ref mode radios
 document.querySelectorAll('input[name="omniTtsRefMode"]').forEach(radio => {
-    radio.addEventListener('change', () => omniTtsRef.onModeChange());
+    radio.addEventListener('change', async () => {
+        await ensureReferenceAudioReady();
+        omniTtsRef.onModeChange();
+    });
 });
 
 // ============================================================================
