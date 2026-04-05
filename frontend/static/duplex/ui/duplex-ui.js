@@ -12,6 +12,8 @@
 import {
     BACKEND_TARGET_CHANGE_EVENT,
     buildBackendHttpUrl,
+    getActiveBackendTarget,
+    describeBackendTarget,
 } from '../../lib/backend-targets.js';
 
 async function fetchWithTimeout(url, timeoutMs = 1600) {
@@ -391,16 +393,25 @@ export function initHealthCheck(badgeId) {
     if (!statusEl) return () => {};
 
     async function check() {
+        const target = getActiveBackendTarget();
+        const targetMeta = describeBackendTarget(target);
         try {
             const resp = await fetchWithTimeout(buildBackendHttpUrl('/status'));
-            if (!resp.ok) throw new Error(`status ${resp.status}`);
+            if (!resp.ok) {
+                if (resp.status === 404 && target.mode === 'proxy') {
+                    statusEl.textContent = targetMeta.needsDirectTargetHint ? '未接入后端' : '网关缺失';
+                    statusEl.className = 'status-badge';
+                    return;
+                }
+                throw new Error(`status ${resp.status}`);
+            }
             const data = await resp.json();
             const idleWorkers = Number.isFinite(Number(data.idle_workers)) ? Number(data.idle_workers) : 0;
             const totalWorkers = Number.isFinite(Number(data.total_workers)) ? Number(data.total_workers) : 0;
             statusEl.textContent = totalWorkers > 0 ? `Workers: ${idleWorkers}/${totalWorkers}` : 'Not ready';
             statusEl.className = 'status-badge' + (idleWorkers > 0 ? ' online' : '');
         } catch {
-            statusEl.textContent = 'Offline';
+            statusEl.textContent = target.mode === 'direct' ? '后端离线' : '离线';
             statusEl.className = 'status-badge';
         }
     }

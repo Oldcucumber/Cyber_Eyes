@@ -1,29 +1,10 @@
-# Python
-.venv/
-__pycache__/
-.pytest_cache/
-.mypy_cache/
-*.pyc
-*.pyo
-
 # Node
 node_modules/
 dist/
 .npm-cache/
 
-# Runtime data
-config.json
-certs/
-data/
-tmp/
-torch_compile_cache/
-workspace/
+# Frontend local config
 frontend/config/*.local.json
-
-# Local sources and archives
-MiniCPM-o-Demo-main.zip
-_restore_zip/
-fresh_extract_2/
 
 # IDE
 .idea/

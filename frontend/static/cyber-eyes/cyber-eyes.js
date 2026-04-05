@@ -240,7 +240,9 @@ function renderBackendTargetMeta(target = getActiveBackendTarget()) {
         : '浏览器 -> 前端 -> 后端';
 
     if (quickPill) {
-        quickPill.textContent = `${meta.label} · ${meta.mode === 'direct' ? '远端直连' : '本地代理'}`;
+        quickPill.textContent = meta.needsDirectTargetHint
+            ? '需远端后端'
+            : `${meta.label} · ${meta.mode === 'direct' ? '远端直连' : '本地代理'}`;
         quickPill.title = accessPath;
     }
     if (modeEl) modeEl.textContent = meta.modeLabel;
@@ -337,6 +339,20 @@ function localizeServiceStatus(text) {
     if (lower.includes('connect') || value.includes('连接')) return '连接中...';
     if (lower.includes('error') || lower.includes('fail') || value.includes('异常')) return '连接异常';
     return value;
+}
+
+function displaySessionState(sessionState) {
+    if (!isDemoMode()) return sessionState;
+
+    const demoMap = {
+        '导盲中': '演示中',
+        '准备中': '准备演示',
+        '待机': '待机',
+        '已暂停': '已暂停',
+        '暂停中': '暂停中',
+        '恢复中': '恢复中',
+    };
+    return demoMap[sessionState] || sessionState;
 }
 
 function dedupeList(items) {
@@ -610,9 +626,9 @@ function buildSessionAlert(sessionState) {
         case '准备中':
             return {
                 level: 'info',
-                prefix: '连接中',
-                title: '正在连接',
-                body: '请稍等。',
+                prefix: isDemoMode() ? '准备演示' : '连接中',
+                title: isDemoMode() ? '正在准备演示' : '正在连接',
+                body: isDemoMode() ? '请稍等。' : '请稍等。',
             };
         case '已暂停':
         case '暂停中':
@@ -625,9 +641,9 @@ function buildSessionAlert(sessionState) {
         case '导盲中':
             return {
                 level: 'clear',
-                prefix: '进行中',
-                title: '正在导盲',
-                body: '有风险会先提醒。',
+                prefix: isDemoMode() ? '演示中' : '进行中',
+                title: isDemoMode() ? '正在演示' : '正在导盲',
+                body: isDemoMode() ? '点下方话术即可继续演示。' : '有风险会先提醒。',
             };
         default:
             return {
@@ -782,17 +798,26 @@ function refreshStatus() {
     const serviceBadge = byId('serviceStatus');
     const sessionState = computeSessionState();
 
-    byId('ceSessionState').textContent = sessionState;
+    byId('ceSessionState').textContent = displaySessionState(sessionState);
     if (sessionState !== lastSessionState) {
         if (lastSessionState) {
-            const sessionAnnouncementMap = {
-                '导盲中': '已开始',
-                '准备中': '正在连接',
-                '已暂停': '已暂停',
-                '暂停中': '正在暂停',
-                '恢复中': '正在恢复',
-                '待机': '已结束',
-            };
+            const sessionAnnouncementMap = isDemoMode()
+                ? {
+                    '导盲中': '已开始演示',
+                    '准备中': '正在准备演示',
+                    '已暂停': '演示已暂停',
+                    '暂停中': '正在暂停演示',
+                    '恢复中': '正在恢复演示',
+                    '待机': '演示已结束',
+                }
+                : {
+                    '导盲中': '已开始',
+                    '准备中': '正在连接',
+                    '已暂停': '已暂停',
+                    '暂停中': '正在暂停',
+                    '恢复中': '正在恢复',
+                    '待机': '已结束',
+                };
             announcePolite(sessionAnnouncementMap[sessionState] || sessionState);
         }
         lastSessionState = sessionState;
@@ -802,9 +827,9 @@ function refreshStatus() {
         startBtn.textContent = startBtn.disabled ? '进行中' : '开始';
     }
     if (pauseBtn) {
-        if (/pausing/i.test(pauseBtn.textContent)) pauseBtn.textContent = '暂停中...';
-        else if (/resuming/i.test(pauseBtn.textContent)) pauseBtn.textContent = '恢复中...';
-        else if (/resume/i.test(pauseBtn.textContent)) pauseBtn.textContent = '继续';
+        if (/暂停中|pausing/i.test(pauseBtn.textContent)) pauseBtn.textContent = '暂停中...';
+        else if (/恢复中|resuming/i.test(pauseBtn.textContent)) pauseBtn.textContent = '恢复中...';
+        else if (/继续|resume/i.test(pauseBtn.textContent)) pauseBtn.textContent = '继续';
         else if (pauseBtn.disabled) pauseBtn.textContent = '暂停';
         else pauseBtn.textContent = '暂停';
     }

@@ -1,280 +1,138 @@
-# Cyber Eyes Deployment
+# Cyber Eyes Frontend Deployment
 
-This repository now supports two independent deployment planes:
+这条 `main` 主线只负责前端部署。后端运行时、CUDA、Python 环境和模型权重下载已经移到分支 `codex/backend-runtime`。
 
-- backend deployment: MiniCPM worker + gateway, optimized for bare-metal Linux with an NVIDIA GPU
-- frontend deployment: a standalone Cyber Eyes web client that can be served locally with `npm`, uploaded as static files, or published through GitHub Pages
+## 1. Local Development
 
-The backend path is still optimized for non-Docker deployment. The supported backend baseline is a Linux host with an NVIDIA GPU, local MiniCPM-o weights, a Python 3.10 virtualenv, and one public HTTPS port exposed by the gateway.
-
-## 1. Target Baseline
-
-- OS: Linux
-- Python: 3.10
-- GPU: NVIDIA GPU with more than 28 GB VRAM recommended by the upstream MiniCPM-o demo
-- Driver / CUDA baseline: NVIDIA driver 570.26 or newer, CUDA toolkit 12.8
-- PyTorch baseline: `torch==2.8.0` and `torchaudio==2.8.0` from the official `cu128` wheel index
-- Browser requirement: HTTPS for camera and microphone permissions
-
-Reference sources:
-
-- [OpenBMB MiniCPM-o-Demo](https://github.com/OpenBMB/MiniCPM-o-Demo)
-- [OpenBMB MiniCPM-o 4.5 model card](https://huggingface.co/openbmb/MiniCPM-o-4_5)
-- [NVIDIA CUDA Installation Guide for Linux](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/)
-- [CUDA 12.8 release notes](https://docs.nvidia.com/cuda/archive/12.8.0/cuda-toolkit-release-notes/index.html)
-- [PyTorch previous versions](https://pytorch.org/get-started/previous-versions/)
-
-## 2. Install Base Host Packages
-
-Ubuntu helper:
-
-```bash
-bash ops/install_system_deps_ubuntu.sh --print-only
-```
-
-If the host is a supported Ubuntu release and you want the helper to run the commands directly:
-
-```bash
-bash ops/install_system_deps_ubuntu.sh --apply
-```
-
-What this installs:
-
-- `build-essential`
-- `curl`
-- `ffmpeg`
-- `git`
-- `libsndfile1`
-- `pkg-config`
-- `wget`
-- `python3-venv`
-- `python3-pip`
-
-Note: the project still expects Python 3.10. If your distribution default is newer, provision Python 3.10 separately and pass it into bootstrap:
-
-```bash
-PYTHON=/path/to/python3.10 bash ops/bootstrap.sh
-```
-
-## 3. Install NVIDIA Driver and CUDA 12.8
-
-Ubuntu helper:
-
-```bash
-bash ops/install_cuda_ubuntu.sh --print-only
-```
-
-If you want the helper to run the install commands directly:
-
-```bash
-bash ops/install_cuda_ubuntu.sh --apply
-```
-
-The helper does three things:
-
-1. Installs Ubuntu's recommended NVIDIA GPGPU driver via `ubuntu-drivers`.
-2. Adds the official NVIDIA CUDA apt repository with the CUDA keyring package.
-3. Installs `cuda-toolkit-12-8`.
-
-After the driver step, reboot the host and verify:
-
-```bash
-nvidia-smi
-nvcc --version
-```
-
-What to check:
-
-- `nvidia-smi` reports driver `570.26` or newer.
-- `nvcc --version` reports CUDA `12.8.x`.
-- At least one visible GPU has enough VRAM for the chosen MiniCPM-o deployment.
-
-Important nuance: the PyTorch `cu128` wheels are sufficient for normal inference and do not require `nvcc`. The full CUDA toolkit is still recommended here because it makes host validation, extension builds, and future troubleshooting much simpler.
-
-## 4. Interactive Bootstrap
-
-Once the host has Python 3.10, ffmpeg, the NVIDIA driver, and the CUDA runtime/toolkit ready, run:
-
-```bash
-bash ops/bootstrap.sh
-```
-
-The interactive bootstrap will:
-
-- create `.venv/base`
-- install PyTorch 2.8.0 / torchaudio 2.8.0 from the `cu128` index
-- install `requirements.txt`
-- run a host preflight check
-- download the model with ModelScope first and Hugging Face fallback
-- generate `config.json`
-- generate a self-signed certificate unless `--http` is requested
-- start local workers and the public gateway
-
-Useful flags:
-
-```bash
-bash ops/bootstrap.sh --yes --source auto
-bash ops/bootstrap.sh --yes --source local --local-source /data/models/MiniCPM-o-4_5
-bash ops/bootstrap.sh --skip-start
-bash ops/bootstrap.sh --model-dir /data/models/MiniCPM-o-4_5
-bash ops/bootstrap.sh --gpu-list 0
-bash ops/bootstrap.sh --port 8443 --worker-base-port 22400 --tls-cn your-domain-or-ip
-```
-
-## 5. Manual Install Sequence
-
-If you prefer an explicit step-by-step deployment instead of the wizard:
-
-```bash
-PYTHON=/path/to/python3.10 bash ops/install.sh
-.venv/base/bin/python ops/scripts/preflight.py
-.venv/base/bin/python ops/scripts/fetch_model.py --dest /data/models/MiniCPM-o-4_5 --source auto
-.venv/base/bin/python ops/scripts/prepare_runtime.py --config config.json --template config.example.json --model-dir /data/models/MiniCPM-o-4_5 --gateway-port 8006 --worker-base-port 22400
-.venv/base/bin/python ops/scripts/ensure_certs.py --cert certs/cert.pem --key certs/key.pem --common-name your-domain-or-ip
-bash ops/start_all.sh
-```
-
-The PyTorch installation used by `ops/install.sh` is equivalent to:
-
-```bash
-.venv/base/bin/pip install --index-url https://download.pytorch.org/whl/cu128 torch==2.8.0 torchaudio==2.8.0
-```
-
-## 6. Runtime Model Download Strategy
-
-`ops/scripts/fetch_model.py` supports four modes:
-
-- `auto`: ModelScope first, Hugging Face fallback
-- `modelscope`: ModelScope only
-- `huggingface`: Hugging Face only
-- `skip`: require an already prepared local model directory
-
-Examples:
-
-```bash
-.venv/base/bin/python ops/scripts/fetch_model.py --dest /data/models/MiniCPM-o-4_5 --source auto
-.venv/base/bin/python ops/scripts/fetch_model.py --dest /data/models/MiniCPM-o-4_5 --local-source /mnt/preloaded/MiniCPM-o-4_5
-```
-
-## 7. Start, Stop, and Restart
-
-Start:
-
-```bash
-bash ops/start_all.sh
-```
-
-Stop:
-
-```bash
-bash ops/stop_all.sh
-```
-
-`ops/start_all.sh` is restart-safe: it stops prior PIDs from this workspace before spawning fresh workers and the gateway.
-
-Recording defaults are bounded to 7 days and 20 GB unless you override them during bootstrap.
-
-## 8. Split Frontend Deployment
-
-The frontend can now be deployed separately from the MiniCPM backend.
-
-### 8.1 Local proxy mode
-
-This is the default local workflow:
+安装依赖：
 
 ```bash
 npm install
+```
+
+如需本地代理模式，先复制一份本地配置：
+
+```bash
 cp frontend/config/backend-targets.example.json frontend/config/backend-targets.local.json
+```
+
+启动开发服务器：
+
+```bash
 npm run dev
 ```
 
-Then edit `frontend/config/backend-targets.local.json` so the default target points at your local gateway:
+默认端口是 `3000`。
 
-- `mode: "proxy"` means the browser only talks to the frontend server
-- `httpBaseUrl` / `wsBaseUrl` are the upstream MiniCPM gateway addresses that the frontend server proxies to
+## 2. Backend Targets
 
-The request path becomes:
+前端只认识两类后端目标：
 
-1. user browser -> frontend server
-2. frontend server -> MiniCPM gateway
-3. MiniCPM gateway -> local workers
+- `proxy`: 浏览器只访问前端，前端服务器再把 `/status`、`/api/*`、`/ws/*` 代理到目标后端
+- `direct`: 浏览器直接请求目标后端
 
-### 8.2 Remote direct mode
+配置文件位置：
 
-To allow the browser to talk to an approved remote backend directly:
+- 默认配置：`frontend/config/backend-targets.json`
+- 本地覆盖：`frontend/config/backend-targets.local.json`
 
-1. add a `direct` target in `frontend/config/backend-targets.local.json`
-2. set `httpBaseUrl` and `wsBaseUrl` to the remote backend origin
-3. add the frontend origin to `config.json -> frontend -> cors_allowed_origins` on the backend
+字段说明：
 
-In direct mode the access path becomes:
+- `id`: 目标标识
+- `label`: 页面中展示的名称
+- `mode`: `proxy` 或 `direct`
+- `httpBaseUrl`: HTTP 基地址
+- `wsBaseUrl`: WebSocket 基地址
+- `enabled`: 是否可选
+- `description`: 页面上的简短说明
 
-1. user browser -> frontend host
-2. user browser -> remote MiniCPM gateway
+## 3. Proxy Mode
 
-The frontend and backend are visited independently, and the frontend proxy is bypassed.
+适合本机或同机房部署：
 
-### 8.3 Static build
+1. 前端 Node 服务对用户开放
+2. 前端 Node 服务代理到 MiniCPM 网关
+3. 浏览器不直接访问后端
 
-Build a deployable frontend bundle:
+这种模式下，浏览器看到的是单一前端入口。
+
+## 4. Direct Mode
+
+适合 GitHub Pages、Cloudflare Pages 或任何纯静态托管：
+
+1. 用户访问独立前端站点
+2. 浏览器直接访问允许的远端后端
+
+这种模式下，后端必须允许当前前端域名：
+
+- CORS
+- WebSocket `Origin`
+
+协议要求见 [`docs/protocol.md`](/D:/gpd/Cyber_Eyes/docs/protocol.md)。
+
+## 5. Static Build
+
+构建静态产物：
 
 ```bash
-npm install
 npm run build
 ```
 
-Output directory:
+本地预览：
+
+```bash
+npm run preview
+```
+
+输出目录：
 
 - `dist/`
 
-Useful commands:
+## 6. GitHub Pages
 
-```bash
-npm run dev
-npm run preview
-npm run start
-```
+仓库已包含工作流：
 
-### 8.4 GitHub Pages / Actions deployment
+- [frontend-deploy.yml](/D:/gpd/Cyber_Eyes/.github/workflows/frontend-deploy.yml)
 
-A workflow is included at `.github/workflows/frontend-deploy.yml`.
-
-For a useful Pages deployment, configure repository variables before enabling the workflow:
+常用环境变量：
 
 - `CYBER_EYES_REMOTE_HTTP_BASE_URL`
 - `CYBER_EYES_REMOTE_WS_BASE_URL`
 - `CYBER_EYES_ACTIVE_TARGET_ID`
-- optionally `CYBER_EYES_REMOTE_TARGET_ID`
-- optionally `CYBER_EYES_REMOTE_TARGET_LABEL`
-- optionally `CYBER_EYES_REMOTE_TARGET_DESCRIPTION`
-- optionally `CYBER_EYES_REMOTE_TARGET_MODE`
+- `CYBER_EYES_REMOTE_TARGET_ID`
+- `CYBER_EYES_REMOTE_TARGET_LABEL`
+- `CYBER_EYES_REMOTE_TARGET_DESCRIPTION`
+- `CYBER_EYES_REMOTE_TARGET_MODE`
+- `CYBER_EYES_PAGES_CNAME`
 
-The workflow builds `dist/` and publishes it to GitHub Pages. If the remote backend variables are absent, the deployed frontend will still build, but the default target will remain local proxy mode and will not work on Pages.
+如果是公网静态托管，推荐默认目标直接指向 `direct` 远端后端，而不是 `proxy` 本地代理。
 
-## 9. Remote Validation Checklist
+## 7. Custom Domain
 
-Once the service is up, verify in this order:
+可通过以下任一方式写入 `dist/CNAME`：
 
-1. `curl -k https://127.0.0.1:8006/health`
-2. `curl -k https://127.0.0.1:8006/status`
-3. Open `https://<public-host>:8006/cyber-eyes`
-4. Confirm the browser grants camera and microphone permissions
-5. Start a live session and verify the status badge shows idle workers before entering the queue
-6. Confirm the first spoken output is short and interruptible
-7. Hold the hold-to-talk button and verify the model yields to the user immediately
-8. Check `tmp/gateway.log` and `tmp/worker_0.log` if startup or streaming stalls
+- [`frontend/CNAME`](/D:/gpd/Cyber_Eyes/frontend/CNAME)
+- `CYBER_EYES_PAGES_CNAME`
 
-For split frontend deployment, also verify:
+另外要在站点侧确保：
 
-9. Open the standalone frontend host and confirm the backend target selector points at the expected backend
-10. In proxy mode, verify `/status` succeeds through the frontend server
-11. In direct mode, verify the backend replies with the expected `Access-Control-Allow-Origin`
+- HTTPS 已强制开启
+- 域名不会跳回 `http://`
+- 如果经由 Cloudflare，SSL 模式为 `Full` 或 `Full (strict)`
 
-## 10. Network Surface
+## 8. Validation Checklist
 
-Only the gateway port needs to be exposed externally. Worker processes bind to `127.0.0.1` and are not intended for direct remote access.
+部署完成后至少检查：
 
-When the frontend is deployed separately:
+1. 首页、`/dev`、`/demo` 都能打开
+2. `/demo` 不依赖后端即可运行
+3. `proxy` 模式下 `/status` 能经由前端代理成功
+4. `direct` 模式下状态灯能正确反映后端在线或离线
+5. 开发者页切换目标后，新的 HTTP / WS 请求确实切到目标后端
+6. 摄像头和麦克风权限只在 HTTPS 下申请
 
-- local proxy mode exposes only the frontend port to users; the frontend server then reaches the backend
-- remote direct mode exposes the frontend host and the backend host independently
+## 9. Backend Branch
+
+如果你需要完整后端部署，请切换到分支：
+
+- `codex/backend-runtime`

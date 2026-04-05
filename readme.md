@@ -1,57 +1,72 @@
-# Cyber Eyes
+# Cyber Eyes Frontend
 
-Cyber Eyes is a productized local deployment of MiniCPM-o full-duplex multimodal interaction for blind-assistance scenarios. The repo is trimmed to one public experience: a real-time, interruptible guidance client that prioritizes hazard alerts, action-first prompts, and operator-friendly deployment.
+`main` 现在只保留 Cyber Eyes 前端主线：导盲页、开发者页、离线演示页、Node 本地代理/预览服务，以及与后端通信所需的配置和协议说明。
 
-The frontend can now be deployed independently from the MiniCPM backend:
+后端运行时、CUDA 安装和 Python 部署链路已经切到独立分支 `codex/backend-runtime`。这条主线不再承载 GPU、模型权重或 Python 服务。
 
-- local mode: user -> frontend server -> MiniCPM gateway
-- remote mode: user separately visits the frontend and the allowed remote MiniCPM gateway
+## Deployment Modes
+
+- `proxy`: 用户访问前端，前端服务器再代理到本地或同机房后端
+- `direct`: 用户分别访问前端和允许的远端后端，浏览器直接连接后端
+- `demo`: 访问 `/demo`，不连接任何后端，直接演示常见语音触发
 
 ## Repository Layout
 
-- `backend/`: gateway, worker, model integration, session utilities
-- `frontend/`: Cyber Eyes web client and duplex runtime
-- `ops/`: bare-metal deployment, host preflight, install helpers
-- `vendor/`: vendorized MiniCPM-o runtime code
-- `assets/`: default reference audio and bundled runtime assets
-- `docs/`: deployment and validation notes
-- `tests/`: retained low-level tests and mock worker helpers
+- `frontend/`: 页面模板、样式、运行时和默认配置
+- `scripts/frontend/`: Node 构建、预览和本地代理入口
+- `docs/`: 前端部署说明和前后端协议说明
+- `tests/js/`: 前端侧 Vitest 测试
 
-## Bare-Metal Quick Start
+## Quick Start
 
-1. Provision a Linux host with an NVIDIA GPU.
-2. Review the deployment guide in [`docs/deployment.md`](/D:/gpd/Cyber_Eyes/docs/deployment.md).
-3. Run the interactive bootstrap:
-
-```bash
-bash ops/bootstrap.sh
-```
-
-The bootstrap path is bare-metal first:
-
-- ModelScope is preferred for model download and falls back to Hugging Face.
-- HTTPS is enabled by default using a self-signed certificate.
-- Internal workers bind to `127.0.0.1`; only the gateway port needs to be opened externally.
-- Docker is intentionally removed from the primary path to avoid GPU/runtime compatibility drift.
-
-## Useful Commands
+1. 安装依赖：
 
 ```bash
 npm install
-npm run dev
-npm run build
-npm run preview
-bash ops/install_system_deps_ubuntu.sh --print-only
-bash ops/install_cuda_ubuntu.sh --print-only
-bash ops/bootstrap.sh --yes --source auto
-bash ops/start_all.sh
-bash ops/stop_all.sh
 ```
 
-## Operational Notes
+2. 如需本地代理模式，复制一份本地目标配置：
 
-- The validated software baseline is Linux + Python 3.10 + PyTorch 2.8.0 CUDA 12.8 wheels.
-- Camera and microphone access require HTTPS in normal browser deployments.
-- The frontend sends structured `assist_context` to the worker so the backend owns the final guidance policy.
-- Frontend target selection is driven by `frontend/config/backend-targets.json` or `frontend/config/backend-targets.local.json`.
-- A GitHub Pages workflow is included at `.github/workflows/frontend-deploy.yml`.
+```bash
+cp frontend/config/backend-targets.example.json frontend/config/backend-targets.local.json
+```
+
+3. 启动开发服务器：
+
+```bash
+npm run dev
+```
+
+4. 常用入口：
+
+- `/`
+- `/cyber-eyes`
+- `/dev`
+- `/demo`
+
+## Build And Preview
+
+```bash
+npm run build
+npm run preview
+```
+
+构建产物输出到 `dist/`。
+
+## Configuration
+
+- 默认目标配置：[`frontend/config/backend-targets.json`](/D:/gpd/Cyber_Eyes/frontend/config/backend-targets.json)
+- 本地覆盖配置：`frontend/config/backend-targets.local.json`
+- GitHub Pages / CI 可通过环境变量注入远端目标
+- 自定义域名可通过 [`frontend/CNAME`](/D:/gpd/Cyber_Eyes/frontend/CNAME) 或 `CYBER_EYES_PAGES_CNAME` 注入
+
+## Docs
+
+- 前端部署：[`docs/deployment.md`](/D:/gpd/Cyber_Eyes/docs/deployment.md)
+- 前后端协议：[`docs/protocol.md`](/D:/gpd/Cyber_Eyes/docs/protocol.md)
+
+## Notes
+
+- 页面中的摄像头和麦克风权限仍要求 HTTPS
+- 静态站点默认应优先使用 `direct` 远端后端目标
+- 若你需要完整 MiniCPM 后端，请切换到分支 `codex/backend-runtime`

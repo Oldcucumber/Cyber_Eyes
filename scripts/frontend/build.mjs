@@ -7,6 +7,7 @@ import {
   ensureCleanDir,
   loadFrontendConfig,
   renderCyberEyesHtml,
+  resolvePagesCname,
   toFrontendConfigScript,
 } from './config-utils.mjs';
 
@@ -21,6 +22,8 @@ const configArgIndex = process.argv.indexOf('--config');
 const explicitConfigPath = configArgIndex >= 0 ? process.argv[configArgIndex + 1] : '';
 
 const { config, configPath } = await loadFrontendConfig(projectRoot, explicitConfigPath);
+const pagesCname = await resolvePagesCname(projectRoot);
+const hasDirectTarget = config.targets.some((target) => target.enabled !== false && target.mode === 'direct');
 
 await ensureCleanDir(distDir);
 await copyDir(staticSrcDir, staticDstDir);
@@ -52,6 +55,12 @@ await fs.writeFile(
 await fs.writeFile(path.join(distDir, 'frontend-config.js'), toFrontendConfigScript(config), 'utf8');
 await fs.writeFile(path.join(distDir, '404.html'), userHtml, 'utf8');
 await fs.writeFile(path.join(distDir, '.nojekyll'), '', 'utf8');
+if (pagesCname) {
+  await fs.writeFile(path.join(distDir, 'CNAME'), `${pagesCname}\n`, 'utf8');
+  if (!hasDirectTarget) {
+    console.warn('[frontend build] warning: custom-domain static deploy has no direct backend target configured. This build will require a same-origin reverse proxy for /status, /api/*, and /ws/*.');
+  }
+}
 
 console.log(`[frontend build] config: ${configPath}`);
 console.log(`[frontend build] output: ${distDir}`);

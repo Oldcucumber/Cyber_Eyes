@@ -1,23 +1,23 @@
 {
-    "defaultTargetId": "local_minicpm",
-    "targets": [
-        {
-            "id": "local_minicpm",
-            "label": "本地 MiniCPM 后端",
-            "mode": "proxy",
-            "httpBaseUrl": "https://127.0.0.1:8006",
-            "wsBaseUrl": "wss://127.0.0.1:8006",
-            "enabled": true,
-            "description": "用户只访问前端服务器，由前端服务器代理到本地 MiniCPM 网关。"
-        },
-        {
-            "id": "remote_allowed",
-            "label": "允许的远端后端",
-            "mode": "direct",
-            "httpBaseUrl": "https://your-backend.example.com",
-            "wsBaseUrl": "wss://your-backend.example.com",
-            "enabled": false,
-            "description": "浏览器直接访问远端后端。启用前请同时在后端 CORS 白名单中加入前端域名。"
-        }
-    ]
+  "defaultTargetId": "local_minicpm",
+  "targets": [
+    {
+      "id": "local_minicpm",
+      "label": "本地 MiniCPM 后端",
+      "mode": "proxy",
+      "httpBaseUrl": "https://127.0.0.1:8006",
+      "wsBaseUrl": "wss://127.0.0.1:8006",
+      "enabled": true,
+      "description": "用户只访问前端入口，再由前端服务代理到本地或同机房的 MiniCPM 网关。"
+    },
+    {
+      "id": "remote_allowed",
+      "label": "允许的远端后端",
+      "mode": "direct",
+      "httpBaseUrl": "https://your-backend.example.com",
+      "wsBaseUrl": "wss://your-backend.example.com",
+      "enabled": false,
+      "description": "浏览器直接访问远端后端。启用前请在后端放行当前前端域名的 CORS 与 WebSocket Origin。"
+    }
+  ]
 }

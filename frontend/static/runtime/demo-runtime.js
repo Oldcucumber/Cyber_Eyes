@@ -6,19 +6,19 @@ if (getPageMode() !== 'demo') {
 
 const DEMO_SCENARIOS = {
     what_ahead: {
-        user: '前面有什么',
+        user: '前面有什么？',
         assistant: '前方两步是开阔通道，十一点方向有一张椅子，继续直行。',
     },
     find_elevator: {
-        user: '带我找电梯',
+        user: '带我找电梯。',
         assistant: '两点钟方向约四米是电梯厅，先向右半步，再直行。',
     },
     read_sign: {
-        user: '读一下门牌',
-        assistant: '门牌写着三 A 会议室，门把手在你右手边。',
+        user: '读一下门牌。',
+        assistant: '门牌写着 A 会议室，门把手在你右手边。',
     },
     cross_now: {
-        user: '现在能过吗',
+        user: '现在能过吗？',
         assistant: '先停一下，左侧有电动车靠近，等它过去再走。',
     },
 };
@@ -42,6 +42,11 @@ function clearTimer(name) {
         window.clearTimeout(demoState[name]);
         demoState[name] = null;
     }
+}
+
+function setDemoStateLabel(text) {
+    const el = byId('ceDemoState');
+    if (el) el.textContent = text;
 }
 
 function stopSpeech() {
@@ -204,12 +209,14 @@ function handleTrigger(intent) {
 
     stopSpeech();
     setListening(true);
+    setDemoStateLabel('正在响应');
     addConversationEntry('user', scenario.user);
     setStatusLamp('preparing');
     clearTimer('phaseTimer');
     demoState.phaseTimer = window.setTimeout(() => {
         setListening(false);
         setStatusLamp('live');
+        setDemoStateLabel('演示中');
         queueAssistantText(scenario.assistant);
     }, 260);
 }
@@ -222,6 +229,7 @@ function startDemo() {
     demoState.paused = false;
     demoState.listening = false;
     setStatusLamp('live');
+    setDemoStateLabel('演示中');
     const placeholder = byId('videoPlaceholder');
     if (placeholder) {
         placeholder.style.display = 'flex';
@@ -244,6 +252,7 @@ function stopDemo() {
     demoState.paused = false;
     demoState.listening = false;
     setStatusLamp('hidden');
+    setDemoStateLabel('无需后端');
     syncButtons();
 }
 
@@ -262,6 +271,7 @@ function togglePause() {
             pause.disabled = false;
             pause.textContent = '继续';
             setStatusLamp('hidden');
+            setDemoStateLabel('已暂停');
             addConversationEntry('system', '演示已暂停。');
             syncButtons();
         }, 220);
@@ -275,6 +285,7 @@ function togglePause() {
         pause.disabled = false;
         pause.textContent = '暂停';
         setStatusLamp('live');
+        setDemoStateLabel('演示中');
         addConversationEntry('system', '演示已恢复。');
         syncButtons();
     }, 220);

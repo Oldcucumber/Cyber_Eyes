@@ -11,7 +11,7 @@ const DEFAULT_CONFIG = {
             httpBaseUrl: '',
             wsBaseUrl: '',
             enabled: true,
-            description: '默认通过当前前端入口访问本地或同机房的 MiniCPM 后端。',
+            description: '默认通过当前前端入口访问本地或同机房的 MiniCPM 网关。',
         },
     ],
 };
@@ -84,6 +84,16 @@ function deriveWsBaseUrl(target) {
     return target.httpBaseUrl.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:');
 }
 
+function isLocalOrigin(origin) {
+    return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(origin);
+}
+
+function looksLikeStaticOnlyProxyTarget(target) {
+    if (target.mode !== 'proxy') return false;
+    const upstream = String(target.httpBaseUrl || '');
+    return /127\.0\.0\.1|localhost/i.test(upstream) && !isLocalOrigin(window.location.origin);
+}
+
 export function listBackendTargets() {
     return [...getResolvedConfig().targets];
 }
@@ -153,13 +163,20 @@ export function describeBackendTarget(target = getActiveBackendTarget()) {
         ? (target.httpBaseUrl || '(未配置)')
         : (target.httpBaseUrl || '同源网关');
 
+    let description = target.description || (target.mode === 'direct'
+        ? '浏览器会直接访问允许的远端后端，请确认后端已放行当前前端域名。'
+        : '浏览器只访问当前前端入口，再由同源前端或网关把请求转发到后端。');
+
+    if (looksLikeStaticOnlyProxyTarget(target)) {
+        description = '当前站点是公网静态入口，但默认目标仍指向本地代理。若未额外配置同源反向代理，请改成 direct 远端目标，否则 /status 和 /ws 会直接失败。';
+    }
+
     return {
         ...target,
         modeLabel,
         browserEndpoint,
         upstreamEndpoint,
-        description: target.description || (target.mode === 'direct'
-            ? '浏览器会直接访问允许的远端后端，请确保后端已放行当前前端域名。'
-            : '浏览器只访问当前前端入口，由前端服务代办转发到配置中的后端。'),
+        description,
+        needsDirectTargetHint: looksLikeStaticOnlyProxyTarget(target),
     };
 }
