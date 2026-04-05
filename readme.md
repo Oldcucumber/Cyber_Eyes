@@ -2,7 +2,7 @@
 
 `main` 现在只保留 Cyber Eyes 前端主线：导盲页、开发者页、离线演示页、Node 本地代理/预览服务，以及与后端通信所需的配置和协议说明。
 
-后端运行时、CUDA 安装和 Python 部署链路已经切到独立分支 `codex/backend-runtime`。这条主线不再承载 GPU、模型权重或 Python 服务。
+后端运行时和模型部署已经迁移到独立后端仓或独立后端服务。这条主线只承载前端页面、构建链路和协议配置。
 
 ## Deployment Modes
 
@@ -55,18 +55,18 @@ npm run preview
 
 ## Configuration
 
-- 默认目标配置：[`frontend/config/backend-targets.json`](/D:/gpd/Cyber_Eyes/frontend/config/backend-targets.json)
+- 默认目标配置：[`frontend/config/backend-targets.json`](frontend/config/backend-targets.json)
 - 本地覆盖配置：`frontend/config/backend-targets.local.json`
 - GitHub Pages / CI 可通过环境变量注入远端目标
-- 自定义域名可通过 [`frontend/CNAME`](/D:/gpd/Cyber_Eyes/frontend/CNAME) 或 `CYBER_EYES_PAGES_CNAME` 注入
+- 自定义域名可通过 [`frontend/CNAME`](frontend/CNAME) 或 `CYBER_EYES_PAGES_CNAME` 注入
 
 ## Docs
 
-- 前端部署：[`docs/deployment.md`](/D:/gpd/Cyber_Eyes/docs/deployment.md)
-- 前后端协议：[`docs/protocol.md`](/D:/gpd/Cyber_Eyes/docs/protocol.md)
+- 前端部署：[`docs/deployment.md`](docs/deployment.md)
+- 前后端协议：[`docs/protocol.md`](docs/protocol.md)
 
 ## Notes
 
 - 页面中的摄像头和麦克风权限仍要求 HTTPS
 - 静态站点默认应优先使用 `direct` 远端后端目标
-- 若你需要完整 MiniCPM 后端，请切换到分支 `codex/backend-runtime`
+- 若你需要完整 MiniCPM 后端，请接入独立后端仓或已部署的后端服务

@@ -1,6 +1,6 @@
 # Cyber Eyes Frontend Deployment
 
-这条 `main` 主线只负责前端部署。后端运行时、CUDA、Python 环境和模型权重下载已经移到分支 `codex/backend-runtime`。
+这条 `main` 主线只负责前端部署。后端运行时和模型部署已经迁移到独立后端仓或独立后端服务。
 
 ## 1. Local Development
 
@@ -68,7 +68,7 @@ npm run dev
 - CORS
 - WebSocket `Origin`
 
-协议要求见 [`docs/protocol.md`](/D:/gpd/Cyber_Eyes/docs/protocol.md)。
+协议要求见 [`docs/protocol.md`](protocol.md)。
 
 ## 5. Static Build
 
@@ -92,7 +92,7 @@ npm run preview
 
 仓库已包含工作流：
 
-- [frontend-deploy.yml](/D:/gpd/Cyber_Eyes/.github/workflows/frontend-deploy.yml)
+- [frontend-deploy.yml](../.github/workflows/frontend-deploy.yml)
 
 常用环境变量：
 
@@ -111,7 +111,7 @@ npm run preview
 
 可通过以下任一方式写入 `dist/CNAME`：
 
-- [`frontend/CNAME`](/D:/gpd/Cyber_Eyes/frontend/CNAME)
+- [`frontend/CNAME`](../frontend/CNAME)
 - `CYBER_EYES_PAGES_CNAME`
 
 另外要在站点侧确保：
@@ -131,8 +131,6 @@ npm run preview
 5. 开发者页切换目标后，新的 HTTP / WS 请求确实切到目标后端
 6. 摄像头和麦克风权限只在 HTTPS 下申请
 
-## 9. Backend Branch
+## 9. Backend Runtime
 
-如果你需要完整后端部署，请切换到分支：
-
-- `codex/backend-runtime`
+如果你需要完整后端部署，请使用独立后端仓或已部署的后端服务。

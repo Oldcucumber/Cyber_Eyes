@@ -2,6 +2,7 @@
 node_modules/
 dist/
 .npm-cache/
+.ruff_cache/
 
 # Frontend local config
 frontend/config/*.local.json

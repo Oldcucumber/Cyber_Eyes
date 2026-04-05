@@ -5,7 +5,7 @@
  * 保证测试中注入 CountdownTimer 的值和真实后端一致，
  * 避免手工编写不合理的 update() 参数。
  *
- * 对应 Python 源码：gateway_modules/worker_pool.py L650-705
+ * 复刻后端队列 ETA 合约，用于前端场景测试
  */
 
 /**
