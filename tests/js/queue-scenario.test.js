@@ -16,8 +16,8 @@
  * S5: 长队列批量释放（3 Worker, 5 人排队）
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { CountdownTimer } from '../../static/lib/countdown-timer.js';
-import { estimateChatEta } from '../../static/lib/chat-eta-estimator.js';
+import { CountdownTimer } from '../../frontend/static/lib/countdown-timer.js';
+import { estimateChatEta } from '../../frontend/static/lib/chat-eta-estimator.js';
 import { BackendSimulator } from './backend-simulator.js';
 
 describe('Queue Scenario Integration (BackendSimulator + CountdownTimer)', () => {

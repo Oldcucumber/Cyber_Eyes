@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { CountdownTimer } from '../../static/lib/countdown-timer.js';
+import { CountdownTimer } from '../../frontend/static/lib/countdown-timer.js';
 
 describe('CountdownTimer', () => {
     beforeEach(() => vi.useFakeTimers());
