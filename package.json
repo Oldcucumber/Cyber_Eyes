@@ -6,15 +6,17 @@
   "scripts": {
     "build": "node scripts/frontend/build.mjs",
     "dev": "node scripts/frontend/server.mjs --port 3000",
-    "preview": "node scripts/frontend/server.mjs --dist --port 4173",
+    "preview": "wrangler dev",
     "start": "node scripts/frontend/server.mjs --dist --port 3000",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "http-proxy": "^1.18.1"
   },
   "devDependencies": {
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wrangler": "^4.80.0"
   }
 }
