@@ -152,7 +152,7 @@ const INITIATIVES = {
     quiet: {
         label: '仅危险提醒',
         summary: '只在危险、即将碰撞或用户主动提问时开口。',
-        contract: '没有风险就闭嘴，有风险就立刻打断。',
+        contract: '无即时风险时保持静默，有风险时立刻打断提醒。',
         prompt: `主动程度使用“仅危险提醒”。
 - 除非存在即时风险，或用户明确提问，否则保持安静。
 - 风险出现时允许立刻主动打断并提醒。`,
@@ -320,15 +320,6 @@ function splitSentences(text) {
         .filter(Boolean);
 }
 
-function firstSentence(text) {
-    return splitSentences(text)[0] || normalizeText(text);
-}
-
-function secondSentence(text) {
-    const sentences = splitSentences(text);
-    return sentences.slice(1).join('，');
-}
-
 function localizeServiceStatus(text) {
     const value = (text || '').trim();
     const lower = value.toLowerCase();
@@ -477,7 +468,7 @@ function ensureStateConsistency({ announce = false } = {}) {
     }
     if (state.pace === 'quick_crossing' && state.initiative === 'proactive') {
         state.initiative = 'balanced';
-        changes.push('快速过街已切换为危险加关键变化，避免后端持续唠叨');
+        changes.push('快速过街已切换为危险加关键变化，避免后端持续冗余播报');
     }
 
     if (changes.length) {
@@ -559,15 +550,15 @@ function computeSessionState() {
 }
 
 function buildControlHint(sessionState = computeSessionState()) {
-    let hint = '点开始后即可使用。需要插话时按住“按住说话”。';
+    let hint = '点击“开始”后即可使用。需要插话时按住“按住说话”。';
 
     if (isDemoMode()) {
-        hint = '点开始后，可直接点下方话术按钮演示常见插话。';
+        hint = '点击“开始”后，可使用下方示例语句按钮演示常见插话。';
     }
 
     if (sessionState === '导盲中') {
         hint = isDemoMode()
-            ? '演示进行中。点话术按钮可模拟用户提问。'
+            ? '演示进行中。点击示例语句按钮可模拟用户提问。'
             : '正在导盲。需要说话时按住“按住说话”。';
     } else if (sessionState === '准备中') {
         hint = isDemoMode() ? '正在准备演示，请稍等。' : '正在连接，请稍等。';
@@ -662,8 +653,11 @@ function buildAlertData(text) {
     }
 
     const level = classifyAssistantMessage(value);
-    const title = clipText(firstSentence(value), 54);
-    const body = clipText(secondSentence(value), 70);
+    const sentences = splitSentences(value);
+    const titleSource = sentences[0] || value;
+    const bodySource = sentences.length > 1 ? sentences.slice(1).join('，') : '';
+    const title = clipText(titleSource, 54);
+    const body = clipText(bodySource, 70);
 
     if (level === 'danger') {
         return {
@@ -834,7 +828,7 @@ function refreshStatus() {
         else pauseBtn.textContent = '暂停';
     }
     if (forceBtn) {
-        forceBtn.textContent = forceBtn.classList.contains('force-listen-active') ? '恢复导盲' : '我在说话';
+        forceBtn.textContent = forceBtn.classList.contains('force-listen-active') ? '恢复导盲' : '语音插话';
     }
     if (hdBtn) {
         hdBtn.textContent = byId('visionHD')?.checked ? '细节已开' : '细节';
@@ -847,7 +841,7 @@ function refreshStatus() {
     const fsStop = byId('fsBtnStop');
     if (fsStart) fsStart.textContent = startBtn?.disabled ? '进行中' : '开始';
     if (fsPause) fsPause.textContent = pauseBtn?.textContent || '暂停';
-    if (fsForce) fsForce.textContent = forceBtn?.textContent || '我在说话';
+    if (fsForce) fsForce.textContent = forceBtn?.textContent || '语音插话';
     if (fsHD) fsHD.textContent = hdBtn?.textContent || '细节增强';
     if (fsStop) fsStop.textContent = '结束';
 
