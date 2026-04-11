@@ -56,7 +56,7 @@ jobs:
           CYBER_EYES_REMOTE_WS_BASE_URL: ${{ vars.CYBER_EYES_REMOTE_WS_BASE_URL }}
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@v4
         with:
           path: dist
 
