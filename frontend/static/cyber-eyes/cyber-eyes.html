@@ -49,7 +49,7 @@
 
             <section class="ce-guidance-card" aria-labelledby="ceGuidanceHeading">
                 <p class="ce-label" id="ceGuidanceHeading">最近一句</p>
-                <div class="ce-guidance-quote" id="ceLatestGuidance">有危险时会先说“停一下”。</div>
+                <div class="ce-guidance-quote" id="ceLatestGuidance">检测到风险时，会优先给出“先停”指令。</div>
                 <p class="ce-guidance-meta" id="ceGuidanceMeta">顺序：危险 -> 方向 -> 动作。</p>
             </section>
 
@@ -111,7 +111,7 @@
                         <div class="fs-chat-inner" id="fsChatInner"></div>
                     </div>
                     <div class="fullscreen-controls" id="fullscreenControls">
-                        <button class="fs-ctrl-btn" id="fsBtnForceListen" disabled type="button">我在说话</button>
+                        <button class="fs-ctrl-btn" id="fsBtnForceListen" disabled type="button">语音插话</button>
                         <button class="fs-ctrl-btn" id="fsBtnHD" disabled type="button">细节增强</button>
                         <button class="fs-ctrl-btn fs-start" id="fsBtnStart" type="button">开始导盲</button>
                         <button class="fs-ctrl-btn" id="fsBtnPause" disabled type="button">暂停</button>
@@ -215,7 +215,7 @@
                     <div class="ce-mini-status" id="ceAudioState">可被打断</div>
                 </div>
 
-                <p class="ce-control-hint" id="ceControlHint">点开始后即可使用。需要插话时按住“按住说话”。</p>
+                <p class="ce-control-hint" id="ceControlHint">点击“开始”后即可使用。需要插话时按住“按住说话”。</p>
 
                 <div class="ce-control-grid">
                     <button class="ctrl-btn primary ce-main-btn" id="btnStart" type="button">开始</button>
@@ -223,7 +223,7 @@
                     <button class="ctrl-btn ce-main-btn" id="btnPause" disabled type="button">暂停</button>
                     <button class="ctrl-btn ce-main-btn" id="btnHD" disabled type="button">细节</button>
                     <button class="ctrl-btn danger ce-main-btn ce-stop-btn" id="btnStop" disabled type="button">结束</button>
-                    <button class="ctrl-btn ce-main-btn ce-hidden-control" id="btnForceListen" disabled type="button" tabindex="-1" aria-hidden="true">我在说话</button>
+                    <button class="ctrl-btn ce-main-btn ce-hidden-control" id="btnForceListen" disabled type="button" tabindex="-1" aria-hidden="true">语音插话</button>
                     <button class="ctrl-btn ce-main-btn ce-hidden-control ce-download-btn" id="btnDownloadRec" style="display:none;" disabled type="button">下载录制</button>
                 </div>
 
@@ -244,8 +244,8 @@
                     </div>
                     <div class="ce-mini-status" id="ceDemoState">无需后端</div>
                 </div>
-                <p class="ce-demo-note">点“开始”后，可直接点下面的话术按钮，演示盲人常见插话和系统短句回应。</p>
-                <div class="ce-demo-grid" role="group" aria-label="演示话术">
+                <p class="ce-demo-note">点击“开始”后，可使用下方示例语句按钮演示常见插话及系统短句回应。</p>
+                <div class="ce-demo-grid" role="group" aria-label="演示示例语句">
                     <button class="ce-demo-trigger" type="button" data-demo-intent="what_ahead">前面有什么</button>
                     <button class="ce-demo-trigger" type="button" data-demo-intent="find_elevator">带我找电梯</button>
                     <button class="ce-demo-trigger" type="button" data-demo-intent="read_sign">读一下门牌</button>
@@ -264,7 +264,7 @@
                 <p class="ce-log-note">这里只用于辅助核对，不是盲人用户的主要交互入口。</p>
                 <div class="panel-dialog ce-dialog-panel">
                     <div class="conv-log" id="conversationLog" role="log" aria-live="off">
-                        <div class="conv-empty" id="convEmpty">点击“开始导盲”后，这里会显示系统、用户和模型的文字轨迹。</div>
+                        <div class="conv-empty" id="convEmpty">点击“开始导盲”后，这里会显示系统、用户与模型的文字记录。</div>
                     </div>
                 </div>
             </section>
@@ -413,6 +413,5 @@
     <script type="module" src="__CYBER_EYES_ASSET_PREFIX__/static/cyber-eyes/cyber-eyes.js"></script>
 </body>
 </html>
-
 
 
