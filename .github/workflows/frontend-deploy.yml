@@ -17,9 +17,6 @@ permissions:
   pages: write
   id-token: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 concurrency:
   group: frontend-pages
   cancel-in-progress: true
@@ -59,7 +56,7 @@ jobs:
           CYBER_EYES_REMOTE_WS_BASE_URL: ${{ vars.CYBER_EYES_REMOTE_WS_BASE_URL }}
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: dist
 
